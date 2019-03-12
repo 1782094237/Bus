@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <link rel="stylesheet" type="text/css" href="../css/index.css" />
+  <title>Document</title>
+</head>
+<script type="text/javascript" src="../script/api.js"></script>
+
+<body id="back">
+
+  <div id="bottomNumber">
+    <p>武汉</p>
+  </div>
+  <div id="bottomName">
+    <p>每天不一样</p>
+  </div>
+</body>
+<script type="text/javascript" src="./script/api.js"></script>
+<script>
+apiready=function(){
+
+//  alert("AAA");
+//  alert(api.pageParam.number);
+if(api.pageParam.number!=null&&api.pageParam.number!=""){
+document.getElementById('bottomNumber').getElementsByTagName('p')[0].innerHTML=api.pageParam.number;
+document.getElementById('bottomName').getElementsByTagName('p')[0].innerHTML=api.pageParam.name;
+//底部列表
+var data=new Array();
+var x=api.pageParam.maxNumber;
+var y=api.pageParam.busMessage;
+for(var i=0;i<x;i++){
+  if(y[i].peopleNum<=y[i].maxNum){
+  data[i]={
+                 "title":"载客:"+y[i].peopleNum +"人",
+                 "subTitle": y[i].carNum+"距我"+y[i].distance+"公里",
+                 "remark": "核载"+y[i].maxNum+'(未超载)',
+                 "icon": ''
+  }
+}else{
+  data[i]={
+                 "title":"载客:"+y[i].peopleNum +"人",
+                 "subTitle": y[i].carNum+"距我"+y[i].distance+"公里",
+                 "remark": "核载"+y[i].maxNum+'(超载)',
+                 "icon": ''
+  }
+}
+}
+
+
+
+
+
+
+var UIListView = api.require('UIListView');
+UIListView.open({
+    rect: {
+        x: 0,
+        y: 80,
+        w: api.winWidth,
+        h: api.frameHeight*0.47
+    },
+    customRefreshHeader: 'UIPullRefreshDrop',
+    data: data,
+    rightBtns: [{
+        bgColor: '#388e8e',
+        activeBgColor: '',
+        width: 70,
+        title: '按钮',
+        titleSize: 12,
+        titleColor: '#fff',
+        icon: '',
+        iconWidth: 20
+    }],
+    rightBtns: [{
+        bgColor: '#ff0000',
+        activeBgColor: '#ffffff',
+        width: 80,
+        title: '取消置顶',
+        titleSize: 14,
+        titleColor: '#ffffff',
+        // icon: '',
+        // iconWidth: 20
+    }
+  ],
+    styles: {
+        borderColor: '#696969',
+        item: {
+            bgColor: '#ffffff',
+            activeBgColor: '#292421',
+            height: 60.0,
+            imgWidth: 0,
+            imgHeight: 0,
+            imgCorner: 0,
+            placeholderImg: '',
+            titleSize: 18.0,
+            titleColor: '#008eee',
+            subTitleSize: 12.0,
+            subTitleColor: '#000',
+            remarkColor: '#008eee',
+            remarkSize: 14,
+            remarkIconWidth: 30
+        }
+    },
+    fixedOn: api.frameName
+}, function(ret, err) {
+  if (ret) {
+    }  else {
+    }
+});
+}
+
+api.addEventListener({
+    name:'longpress'
+}, function(ret, err){
+  if(document.getElementById('bottomNumber').getElementsByTagName('p')[0].innerHTML=="武汉"){
+  }else{
+    api.sendEvent({
+    name: 'myapp',
+    });
+  }
+
+});
+
+}
+
+
+
+
+</script>
+</html>

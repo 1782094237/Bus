@@ -1,0 +1,3155 @@
+<!DOCTYPE HTML>
+<html>
+
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta name="viewport" content="maximum-scale=1.0, minimum-scale=1.0, user-scalable=0, initial-scale=1.0, width=device-width" />
+    <meta name="format-detection" content="telephone=no, email=no, date=no, address=no">
+    <title>Hello APP</title>
+    <link rel="stylesheet" type="text/css" href="../css/api.css" />
+</head>
+<body>
+</body>
+<script type="text/javascript" src="../script/api.js"></script>
+<script type="text/javascript">
+// function end(x){
+//   document.getElementById('1').innerHTML=x;
+//   }
+  apiready=function(){
+var city="武汉";
+      //打开地图
+    var bMap = api.require('bMap');
+
+    bMap.open({
+        rect: {
+            x: 0,
+            y: 0,
+            w: 360,
+            h: 500
+        },
+        center: {
+            lon: 116.4021310000,
+            lat: 39.9994480000
+        },
+        zoomLevel: 16,
+        showUserLocation: true,
+        fixedOn: api.frameName,
+        fixed: true
+    }, function(ret) {
+        if (ret.status) {
+  //alert('地图打开成功');
+        }
+    });
+  //显示用户位置
+    bMap.showUserLocation({
+        isShow: true,
+        trackingMode: 'none'
+    });
+
+
+
+//-----------------------------------地图设置---------------------------------
+//搜索函数加if来进行判断
+var searchContent=api.pageParam.name;
+var searchNumber=searchContent.replace(/[^0-9]+/g, '');
+//如果搜索内容为空
+if(searchContent==""||searchContent==null){
+//  alert("您搜索的内容为空，请重新输入");
+  api.openFrame({
+     name: 'bottom',
+     url: 'busNumber.html',
+     rect: {
+         x: 0,
+         y: 440,
+         w: 360,
+         h: 250
+     },
+     pageParam: {
+         name: ''
+     },
+     reload:true,
+     bounces: false,
+     allowEdit:true,
+     bgColor: 'rgba(0,0,0,0)',
+     vScrollBarEnabled: false,
+     hScrollBarEnabled: false
+  });
+
+}else{
+//  alert("不为空");
+if(searchNumber==""||searchNumber==null){
+//alert("数字为空");
+//searchContent
+//获取用户位置
+//根据地址查找经纬度 ret2
+bMap.getCoordsFromName({
+          city:city,
+          address: searchContent
+      }, function(ret2, err) {
+if (ret2.status) {
+            var endLon=ret2.lon;
+            var endLat=ret2.lat;
+
+api.actionSheet({
+    title: '路线策略',
+    cancelTitle: '默认',
+    buttons: ['A:时间优先', 'B:最少换乘', 'C:最少步行距离']
+}, function(ret4, err4) {
+    var index = ret4.buttonIndex;
+//1-最小步行距离  2—最少换乘 3-时间优先
+var Policy;
+switch(index){
+case 1: Policy="ebus_time_first";
+break;
+case 2:Policy="ebus_transfer_first";
+break;
+case 3:Policy="ebus_walk_first";
+break;
+default:Policy="ebus_walk_first";
+break;
+}
+
+    bMap.getLocation({
+      accuracy: '100m',
+      autoStop: true,
+      filter: 1
+    }, function(ret1, err) {
+      if (ret1.status) {
+    //起始位置 ret1
+          var startLon=ret1.lon;
+          var startLat=ret1.lat;
+
+    //搜索公交路径 ret3
+          var map = api.require('bMap');
+          map.searchRoute({
+            id: 1,
+            type: 'transit',
+            policy: Policy,
+            start: {
+                lon: startLon,
+                lat: startLat
+            },
+            end: {
+                lon: endLon,
+                lat: endLat
+            }
+          }, function(ret3, err) {
+            if (ret3.status) {
+    //可以有多条，每次换乘只选择第一次传给bus，后台一样。
+    //第一个数字代表路线的条数，第二个数字代表步行公交换乘。
+
+var planNumber=0;
+//搜索到线路的条数
+for(;ret3.plans[planNumber]!=undefined;planNumber++){
+}
+var rote=new Array();   //未处理的线路
+var B=new Array();      //正则之后的线路
+//前提结束
+
+var max;
+if(planNumber>2){
+  max=3;
+}else{
+  max=planNumber;
+}
+
+ //简化路线
+for(var i=0;i<max;i++){
+  var A={};
+
+  var startStation=JSON.stringify(ret3.plans[i].nodes[0].description);
+  var pattern =/达(.+?)站/g;
+  var text=startStation.match(pattern);
+   A.startStation=text.toString().replace(/(达|站)/g, "");
+
+  var busNumber=JSON.stringify(ret3.plans[i].nodes[1].description);
+  var pattern =/坐(.+?)路/g;
+  var text=busNumber.match(pattern);
+   A.busNumber=text.toString().replace(/(坐)/g, "");
+
+  var stationNumber=JSON.stringify(ret3.plans[i].nodes[1].description);
+  var pattern =/过(.+?)站/g;
+  var text=stationNumber.match(pattern);
+   A.stationNumber=text.toString().replace(/(过|站)/g, "");
+
+  var endStation=JSON.stringify(ret3.plans[i].nodes[1].description);
+  var pattern =/达(.+?)站/g;
+  var text=endStation.match(pattern);
+   A.endStation=text.toString().replace(/(达|站)/g, "");
+//转乘规划
+rote[i]=ret3.plans[i].nodes[0].description;
+for(var judge=1;ret3.plans[i].nodes[judge]!=null&&ret3.plans[i].nodes[judge]!='';judge++)
+  rote[i]=rote[i]+ret3.plans[i].nodes[judge].description;
+
+  A.startStation+'->'+A.busNumber+'('+A.stationNumber+')'+'->'+A.endStation;
+  B[i]=A;
+}
+var Title;
+switch(Policy){
+  case "ebus_time_first":Title="时间优先";break;
+  case "ebus_transfer_first":Title="最少换乘";break;
+  case "ebus_walk_first":Title="步行最少";break;
+  default:Title="步行最少";break;
+}
+
+api.actionSheet({
+    title: Title,
+    cancelTitle: '默认',
+//    destructiveTitle: '红色警告按钮',
+    buttons: rote
+}, function(ret5, err5) {
+    var index = ret5.buttonIndex;
+    if(index==max+1){
+      index=1;
+    }
+//    alert(B[index-1].startStation+'-'+B[index-1].endStation);
+var Number=B[index-1].busNumber.replace(/[^0-9]+/g, '');
+var Name=B[index-1].startStation+'-'+B[index-1].endStation;
+var BusName;
+api.ajax({
+    url: 'http://47.106.219.51/BusPartner/route/'+Number,
+    method: 'get',
+    data: {}
+}, function(retAjax0, errAjax0) {
+  if(JSON.stringify(retAjax0)!=""){
+
+  var x=-1;
+  var y=-1;
+  var zheng=0;
+  var fan=0;
+  var start;
+  var direction;
+  for(var z in retAjax0["正向"]){
+    zheng++;
+  }
+  for(var k in retAjax0["反向"]){
+    fan++;
+  }
+//  alert(JSON.stringify(retAjax0["正向"]))
+//  alert(zheng);
+for(var i=0;i<zheng;i++){
+//  alert(retAjax0["正向"][i].name)
+  if(retAjax0["正向"][i].name==B[index-1].startStation){
+    x=i;
+  }
+  if(retAjax0["正向"][i].name==B[index-1].endStation){
+    y=i;
+  }
+}
+if(x!=-1&&y!=-1){
+  if(x<y){
+    BusName=Number+'路'+'('+retAjax0["正向"][0].name+'-'+retAjax0["正向"][zheng-1].name+')';
+start=x;
+direction="正向";
+
+  }else{
+    BusName=Number+'路'+'('+retAjax0["反向"][0].name+'-'+retAjax0["反向"][fan-1].name+')';
+
+    for(var i=0;i<fan;i++){
+      if(retAjax0["反向"][i].name==B[index-1].startStation){
+        x=i;
+      }
+    }
+start=x;
+direction="反向";
+
+  }
+}else{
+  for(var j=0;j<fan;j++){
+    if(retAjax0["反向"][j].name==B[index-1].startStation){
+      x=j;
+    }
+    if(retAjax0["反向"][j].name==B[index-1].endStation){
+      y=j;
+    }
+  }
+    BusName=Number+'路'+'('+retAjax0["反向"][0].name+'-'+retAjax0["反向"][fan-1].name+')';
+start=x;
+direction="反向";
+}
+
+
+    api.ajax({
+        url: 'http://47.106.219.51/BusPartner/state/'+BusName,
+        method: 'get',
+        data: {
+        }
+    }, function(retAjax, errAjax) {
+if(JSON.stringify(retAjax)!=""){
+
+      bMap.getLocation({
+          accuracy: '100m',
+          autoStop: true,
+          filter: 1
+      }, function(retLocation, errloaction) {
+          if (retLocation.status) {
+      //获取数据
+      //alert(JSON.stringify(retLocation));
+      //alert(retAjax.length);
+      var BusMessage2=new Array();
+      var maxNumber=retAjax.length;
+      var maxNumber2=0;
+      var position=new Array();
+      var max;
+      if(direction=="正向"){
+        max=zheng;
+      }else{
+        max=fan;
+      }
+//      alert(direction);
+
+//判断前后
+var select=0;
+      for(var i=0;i<maxNumber;i++){
+        var judge;
+        for(var p=0;p<max;p++){
+          if(retAjax0[direction][p].name==retAjax[i].lastStation)
+          {
+            judge=p;
+          }
+        }
+
+        if(judge<start){
+          maxNumber2=maxNumber2+1;
+      BusMessage2[select]=new Object();
+      position[select]=new Object();
+      position[select].id=select;
+      position[select].lon=retAjax[i].longitude;
+      position[select].lat=retAjax[i].latitude;
+      function Rad(d){
+        return d * Math.PI / 180.0;//经纬度转换成三角函数中度分表形式。
+      }
+      function GetDistance(lat1,lng1,lat2,lng2){
+              var radLat1 = Rad(lat1);
+              var radLat2 = Rad(lat2);
+              var a = radLat1 - radLat2;
+              var  b = Rad(lng1) - Rad(lng2);
+              var s = 2 * Math.asin(Math.sqrt(Math.pow(Math.sin(a/2),2) +
+              Math.cos(radLat1)*Math.cos(radLat2)*Math.pow(Math.sin(b/2),2)));
+              s = s *6378.137 ;// EARTH_RADIUS;
+              s = Math.round(s * 10000) / 10000; //输出为公里
+              //s=s.toFixed(4);
+              return s;
+          }
+  //    alert(i);
+  // alert(GetDistance(retAjax[i].latitude,retAjax[i].longitude,retLocation.lat,retLocation.lon).toFixed(1));
+  // alert(j);
+      BusMessage2[select].distance=GetDistance(retAjax[i].latitude,retAjax[i].longitude,retLocation.lat,retLocation.lon).toFixed(1);
+      BusMessage2[select].peopleNum=retAjax[i].passengerNum;
+      BusMessage2[select].carNum=retAjax[i].bus.carNum;
+      BusMessage2[select].maxNum=retAjax[i].bus.seatNum;
+      select++;
+//      alert(BusMessage2[i].carNum);
+
+      }
+      }
+
+      //画位置
+
+      bMap.addAnnotations({
+          annotations: position,
+          icon: 'widget://',
+          draggable: true
+      }, function(retAnnot) {
+          if (retAnnot) {
+            bMap.setBubble({
+                id: retAnnot.id,
+                bgImg: 'widget://image//busBackground.png',
+                content: {
+                    title: "载客:"+BusMessage2[retAnnot.id].peopleNum+"人 "+"核载:"+BusMessage2[retAnnot.id].maxNum+"人",
+                    subTitle: BusMessage2[retAnnot.id].carNum+"距我"+BusMessage2[retAnnot.id].distance+"公里",
+                    illus: 'http://ico.ooopic.com/ajax/iconpng/?id=145044.png'
+                },
+                styles: {
+                    titleColor: '#000',
+                    titleSize: 16,
+                    subTitleColor: '#4c4b4b',
+                    subTitleSize: 14,
+                    illusAlign: 'left'
+                }
+            }, function(retBubble) {
+                if (retBubble) {
+      //              alert(JSON.stringify(ret));
+      bMap.closeBubble({
+          id: retAnnot.id
+      });
+                }
+            });
+
+          }else{
+            alert("添加公交车标注不成功");
+          }
+      });
+
+
+      //画位置结束
+      //按照距离排序
+      var len = maxNumber2;
+      　　var minIndex, temp;
+      　　for (var i = 0; i < len - 1; i++) {
+      　　　　minIndex = i;
+      　　　　for (var j = i + 1; j < len; j++) {
+      　　　　　　if (BusMessage2[j].distance < BusMessage2[minIndex].distance) { //寻找最小的数
+      　　　　　　　　minIndex = j; //将最小数的索引保存
+      　　　　　　}
+      　　　　}
+      　　　　temp = BusMessage2[i];
+      　　　　BusMessage2[i] = BusMessage2[minIndex];
+      　　　　BusMessage2[minIndex] = temp;
+      　　}
+      //排序结束
+      //alert(BusMessage[1].distance)
+      //alert(BusMessage[0].distance);
+      //alert(BusMessage[1].distance);
+      //数据范围提升
+      // 经度 纬度 人数 车牌号 与我距离
+      //  $api.setStorage("BusMessage2",BusMessage2);
+      //  $api.setStorage("maxNumber2",maxNumber2);
+
+
+      map.drawRoute({
+              id: 1,
+              autoresizing: true,
+              index: index-1,
+              styles: {
+                  start: {
+                      icon: 'widget://image/bmap_start.png'
+                  },
+                  end: {
+                      icon: 'widget://image/bmap_end.png'
+                  }
+              }
+          }, function(ret5) {
+        //    alert(JSON.stringify(ret3.plans[index-1].nodes[ret5.nodeIndex]));
+            var first=ret3.plans[index-1].nodes[ret5.nodeIndex].description.substring(0,13);
+            var last=ret3.plans[index-1].nodes[ret5.nodeIndex].description.substring(13,ret3.plans[index-1].nodes[ret5.nodeIndex].description.length);
+            bMap.addBillboard({
+                id: ret5.nodeIndex+100,
+                coords: {
+                    lon: ret3.plans[index-1].nodes[ret5.nodeIndex].lon,
+                    lat: ret3.plans[index-1].nodes[ret5.nodeIndex].lat
+                },
+                bgImg: '',
+                content: {
+                    title:first,
+                    subTitle: last,
+                },
+                styles: {
+                    titleColor: '#000',
+                    titleSize: 9,
+                    subTitleSize: 7,
+                    illusAlign: 'right'
+                }
+            }, function(ret) {
+                if (ret) {
+                  bMap.removeAnnotations({
+                 ids: [ret5.nodeIndex+100]
+            });
+                    alert(ret3.plans[index-1].nodes[ret5.nodeIndex].description);
+                }
+            });
+
+//              api.alert({ msg: JSON.stringify(ret5) });
+          });
+    //绘制线路成功
+
+    //传递底部参数
+    //打开底部
+    api.openFrame({
+    name: 'bottom',
+    url: 'busNumber.html',
+    rect: {
+    x: 0,
+    y: 440,
+    w: 360,
+    h: 250
+    },
+    pageParam: {
+    number:Number,
+    name:Name,
+    busMessage:BusMessage2,
+    maxNumber:maxNumber2
+    },
+    reload:true,
+    bounces: false,
+    allowEdit:true,
+    bgColor: 'rgba(0,0,0,0)',
+    vScrollBarEnabled: false,
+    hScrollBarEnabled: false
+    });
+
+    api.addEventListener({
+        name: 'myapp'
+    }, function(ret, err) {
+      var Ids=new Array();
+      for(var i1=0;position[i1];i1++){
+        Ids[i1]=i1;
+      }
+          bMap.removeAnnotations({
+               ids: Ids
+          });
+
+
+        // alert("222");
+        api.ajax({
+            url: 'http://47.106.219.51/BusPartner/route/'+Number,
+            method: 'get',
+            data: {}
+        }, function(retAjax0, errAjax0) {
+          if(JSON.stringify(retAjax0)!=""){
+
+          var x=-1;
+          var y=-1;
+          var zheng=0;
+          var fan=0;
+          var start;
+          var direction;
+          for(var z in retAjax0["正向"]){
+            zheng++;
+          }
+          for(var k in retAjax0["反向"]){
+            fan++;
+          }
+        //  alert(JSON.stringify(retAjax0["正向"]))
+        //  alert(zheng);
+        for(var i=0;i<zheng;i++){
+        //  alert(retAjax0["正向"][i].name)
+          if(retAjax0["正向"][i].name==B[index-1].startStation){
+            x=i;
+          }
+          if(retAjax0["正向"][i].name==B[index-1].endStation){
+            y=i;
+          }
+        }
+        if(x!=-1&&y!=-1){
+          if(x<y){
+            BusName=Number+'路'+'('+retAjax0["正向"][0].name+'-'+retAjax0["正向"][zheng-1].name+')';
+        start=x;
+        direction="正向";
+
+          }else{
+            BusName=Number+'路'+'('+retAjax0["反向"][0].name+'-'+retAjax0["反向"][fan-1].name+')';
+
+            for(var i=0;i<fan;i++){
+              if(retAjax0["反向"][i].name==B[index-1].startStation){
+                x=i;
+              }
+            }
+        start=x;
+        direction="反向";
+
+          }
+        }else{
+          for(var j=0;j<fan;j++){
+            if(retAjax0["反向"][j].name==B[index-1].startStation){
+              x=j;
+            }
+            if(retAjax0["反向"][j].name==B[index-1].endStation){
+              y=j;
+            }
+          }
+            BusName=Number+'路'+'('+retAjax0["反向"][0].name+'-'+retAjax0["反向"][fan-1].name+')';
+        start=x;
+        direction="反向";
+        }
+
+
+            api.ajax({
+                url: 'http://47.106.219.51/BusPartner/state/'+BusName,
+                method: 'get',
+                data: {
+                }
+            }, function(retAjax, errAjax) {
+        if(JSON.stringify(retAjax)!=""){
+
+              bMap.getLocation({
+                  accuracy: '100m',
+                  autoStop: true,
+                  filter: 1
+              }, function(retLocation, errloaction) {
+                  if (retLocation.status) {
+              //获取数据
+              //alert(JSON.stringify(retLocation));
+              //alert(retAjax.length);
+              var BusMessage2=new Array();
+              var maxNumber=retAjax.length;
+              var maxNumber2=0;
+              var position=new Array();
+              var max;
+              if(direction=="正向"){
+                max=zheng;
+              }else{
+                max=fan;
+              }
+        //      alert(direction);
+
+        //判断前后
+        var select=0;
+              for(var i=0;i<maxNumber;i++){
+                var judge;
+                for(var p=0;p<max;p++){
+                  if(retAjax0[direction][p].name==retAjax[i].lastStation)
+                  {
+                    judge=p;
+                  }
+                }
+
+                if(judge<start){
+                  maxNumber2=maxNumber2+1;
+              BusMessage2[select]=new Object();
+              position[select]=new Object();
+              position[select].id=select;
+              position[select].lon=retAjax[i].longitude;
+              position[select].lat=retAjax[i].latitude;
+              function Rad(d){
+                return d * Math.PI / 180.0;//经纬度转换成三角函数中度分表形式。
+              }
+              function GetDistance(lat1,lng1,lat2,lng2){
+                      var radLat1 = Rad(lat1);
+                      var radLat2 = Rad(lat2);
+                      var a = radLat1 - radLat2;
+                      var  b = Rad(lng1) - Rad(lng2);
+                      var s = 2 * Math.asin(Math.sqrt(Math.pow(Math.sin(a/2),2) +
+                      Math.cos(radLat1)*Math.cos(radLat2)*Math.pow(Math.sin(b/2),2)));
+                      s = s *6378.137 ;// EARTH_RADIUS;
+                      s = Math.round(s * 10000) / 10000; //输出为公里
+                      //s=s.toFixed(4);
+                      return s;
+                  }
+          //    alert(i);
+          // alert(GetDistance(retAjax[i].latitude,retAjax[i].longitude,retLocation.lat,retLocation.lon).toFixed(1));
+          // alert(j);
+              BusMessage2[select].distance=GetDistance(retAjax[i].latitude,retAjax[i].longitude,retLocation.lat,retLocation.lon).toFixed(1);
+              BusMessage2[select].peopleNum=retAjax[i].passengerNum;
+              BusMessage2[select].carNum=retAjax[i].bus.carNum;
+              BusMessage2[select].maxNum=retAjax[i].bus.seatNum;
+              select++;
+        //      alert(BusMessage2[i].carNum);
+
+              }
+              }
+
+              //画位置
+
+              bMap.addAnnotations({
+                  annotations: position,
+                  icon: 'widget://',
+                  draggable: true
+              }, function(retAnnot) {
+                  if (retAnnot) {
+                    bMap.setBubble({
+                        id: retAnnot.id,
+                        bgImg: 'widget://image//busBackground.png',
+                        content: {
+                            title: "载客:"+BusMessage2[retAnnot.id].peopleNum+"人 "+"核载:"+BusMessage2[retAnnot.id].maxNum+"人",
+                            subTitle: BusMessage2[retAnnot.id].carNum+"距我"+BusMessage2[retAnnot.id].distance+"公里",
+                            illus: 'http://ico.ooopic.com/ajax/iconpng/?id=145044.png'
+                        },
+                        styles: {
+                            titleColor: '#000',
+                            titleSize: 16,
+                            subTitleColor: '#4c4b4b',
+                            subTitleSize: 14,
+                            illusAlign: 'left'
+                        }
+                    }, function(retBubble) {
+                        if (retBubble) {
+              //              alert(JSON.stringify(ret));
+              bMap.closeBubble({
+                  id: retAnnot.id
+              });
+                        }
+                    });
+
+                  }else{
+                    alert("添加公交车标注不成功");
+                  }
+              });
+
+
+              //画位置结束
+              //按照距离排序
+              var len = maxNumber2;
+              　　var minIndex, temp;
+              　　for (var i = 0; i < len - 1; i++) {
+              　　　　minIndex = i;
+              　　　　for (var j = i + 1; j < len; j++) {
+              　　　　　　if (BusMessage2[j].distance < BusMessage2[minIndex].distance) { //寻找最小的数
+              　　　　　　　　minIndex = j; //将最小数的索引保存
+              　　　　　　}
+              　　　　}
+              　　　　temp = BusMessage2[i];
+              　　　　BusMessage2[i] = BusMessage2[minIndex];
+              　　　　BusMessage2[minIndex] = temp;
+              　　}
+              //排序结束
+              //alert(BusMessage[1].distance)
+              //alert(BusMessage[0].distance);
+              //alert(BusMessage[1].distance);
+              //数据范围提升
+              // 经度 纬度 人数 车牌号 与我距离
+              //  $api.setStorage("BusMessage2",BusMessage2);
+              //  $api.setStorage("maxNumber2",maxNumber2);
+
+
+              map.drawRoute({
+                      id: 1,
+                      autoresizing: true,
+                      index: index-1,
+                      styles: {
+                          start: {
+                              icon: 'widget://image/bmap_start.png'
+                          },
+                          end: {
+                              icon: 'widget://image/bmap_end.png'
+                          }
+                      }
+                  }, function(ret5) {
+                //    alert(JSON.stringify(ret3.plans[index-1].nodes[ret5.nodeIndex]));
+                    var first=ret3.plans[index-1].nodes[ret5.nodeIndex].description.substring(0,13);
+                    var last=ret3.plans[index-1].nodes[ret5.nodeIndex].description.substring(13,ret3.plans[index-1].nodes[ret5.nodeIndex].description.length);
+                    bMap.addBillboard({
+                        id: ret5.nodeIndex+100,
+                        coords: {
+                            lon: ret3.plans[index-1].nodes[ret5.nodeIndex].lon,
+                            lat: ret3.plans[index-1].nodes[ret5.nodeIndex].lat
+                        },
+                        bgImg: '',
+                        content: {
+                            title:first,
+                            subTitle: last,
+                        },
+                        styles: {
+                            titleColor: '#000',
+                            titleSize: 9,
+                            subTitleSize: 7,
+                            illusAlign: 'right'
+                        }
+                    }, function(ret) {
+                        if (ret) {
+                          bMap.removeAnnotations({
+                         ids: [ret5.nodeIndex+100]
+                    });
+                            alert(ret3.plans[index-1].nodes[ret5.nodeIndex].description);
+                        }
+                    });
+
+        //              api.alert({ msg: JSON.stringify(ret5) });
+                  });
+            //绘制线路成功
+
+            //传递底部参数
+            //打开底部
+            api.openFrame({
+            name: 'bottom',
+            url: 'busNumber.html',
+            rect: {
+            x: 0,
+            y: 440,
+            w: 360,
+            h: 250
+            },
+            pageParam: {
+            number:Number,
+            name:Name,
+            busMessage:BusMessage2,
+            maxNumber:maxNumber2
+            },
+            reload:true,
+            bounces: false,
+            allowEdit:true,
+            bgColor: 'rgba(0,0,0,0)',
+            vScrollBarEnabled: false,
+            hScrollBarEnabled: false
+            });
+
+  // alert("2222");
+
+              } else {
+                  alert("定位错误");
+                  api.openFrame({
+                     name: 'bottom',
+                     url: 'busNumber.html',
+                     rect: {
+                         x: 0,
+                         y: 440,
+                         w: 360,
+                         h: 250
+                     },
+                     pageParam: {
+                         name: ''
+                     },
+                     reload:false,
+                     bounces: false,
+                     allowEdit:true,
+                     bgColor: 'rgba(0,0,0,0)',
+                     vScrollBarEnabled: false,
+                     hScrollBarEnabled: false
+                  });
+              }
+              });
+        //获取信息结束
+        // var BusMessage2=new Array();
+        // BusMessage2=$api.getStorage("BusMessage2");
+        // var maxNumber2=$api.getStorage("maxNumber2");
+
+
+
+
+          }else{
+            alert("后台获取公交车信息错误!");
+            api.openFrame({
+               name: 'bottom',
+               url: 'busNumber.html',
+               rect: {
+                   x: 0,
+                   y: 440,
+                   w: 360,
+                   h: 250
+               },
+               pageParam: {
+                   name: ''
+               },
+               reload:false,
+               bounces: false,
+               allowEdit:true,
+               bgColor: 'rgba(0,0,0,0)',
+               vScrollBarEnabled: false,
+               hScrollBarEnabled: false
+            });
+          }
+        });}else{
+            alert("后台获取线路数组错误!");
+            api.openFrame({
+               name: 'bottom',
+               url: 'busNumber.html',
+               rect: {
+                   x: 0,
+                   y: 440,
+                   w: 360,
+                   h: 250
+               },
+               pageParam: {
+                   name: ''
+               },
+               reload:false,
+               bounces: false,
+               allowEdit:true,
+               bgColor: 'rgba(0,0,0,0)',
+               vScrollBarEnabled: false,
+               hScrollBarEnabled: false
+            });
+          }});
+
+    });
+
+      } else {
+          alert("定位错误");
+          api.openFrame({
+             name: 'bottom',
+             url: 'busNumber.html',
+             rect: {
+                 x: 0,
+                 y: 440,
+                 w: 360,
+                 h: 250
+             },
+             pageParam: {
+                 name: ''
+             },
+             reload:false,
+             bounces: false,
+             allowEdit:true,
+             bgColor: 'rgba(0,0,0,0)',
+             vScrollBarEnabled: false,
+             hScrollBarEnabled: false
+          });
+      }
+      });
+//获取信息结束
+// var BusMessage2=new Array();
+// BusMessage2=$api.getStorage("BusMessage2");
+// var maxNumber2=$api.getStorage("maxNumber2");
+
+
+
+
+  }else{
+    alert("后台获取公交车信息错误!");
+    api.openFrame({
+       name: 'bottom',
+       url: 'busNumber.html',
+       rect: {
+           x: 0,
+           y: 440,
+           w: 360,
+           h: 250
+       },
+       pageParam: {
+           name: ''
+       },
+       reload:false,
+       bounces: false,
+       allowEdit:true,
+       bgColor: 'rgba(0,0,0,0)',
+       vScrollBarEnabled: false,
+       hScrollBarEnabled: false
+    });
+  }
+});}else{
+    alert("后台获取线路数组错误!");
+    api.openFrame({
+       name: 'bottom',
+       url: 'busNumber.html',
+       rect: {
+           x: 0,
+           y: 440,
+           w: 360,
+           h: 250
+       },
+       pageParam: {
+           name: ''
+       },
+       reload:false,
+       bounces: false,
+       allowEdit:true,
+       bgColor: 'rgba(0,0,0,0)',
+       vScrollBarEnabled: false,
+       hScrollBarEnabled: false
+    });
+  }});
+          // if(ret.status){
+          //     alert(JSON.stringify(ret));
+          //
+          // }else{
+          //     alert(JSON.stringify(err));
+          // }
+     });
+
+
+//绘制结束
+
+// if(planNumber==2){
+//
+//   // for(var i=0;i<2;i++){
+//   // var A={};
+//   // var startStation=JSON.stringify(ret3.plans[i].nodes[0].description);
+//   // var pattern =/达(.+?)站/g;
+//   // var text=startStation.match(pattern);
+//   //  A.startStation=text.toString().replace(/(达|站)/g, "");
+//   //
+//   // var busNumber=JSON.stringify(ret3.plans[i].nodes[1].description);
+//   // var pattern =/坐(.+?)路/g;
+//   // var text=busNumber.match(pattern);
+//   //  A.busNumber=text.toString().replace(/(坐)/g, "");
+//   //
+//   // var stationNumber=JSON.stringify(ret3.plans[i].nodes[1].description);
+//   // var pattern =/过(.+?)站/g;
+//   // var text=stationNumber.match(pattern);
+//   //  A.stationNumber=text.toString().replace(/(过|站)/g, "");
+//   //
+//   // var endStation=JSON.stringify(ret3.plans[i].nodes[1].description);
+//   // var pattern =/达(.+?)站/g;
+//   // var text=endStation.match(pattern);
+//   //  A.endStation=text.toString().replace(/(达|站)/g, "");
+//   //
+//   // rote[i]=A.startStation+'->'+A.busNumber+'('+A.stationNumber+')'+'->'+A.endStation;
+//   // B[i]=A;
+//   // }
+//   var Title;
+//   switch(Policy){
+//   case "ebus_time_first":Title="时间优先";break;
+//   case "ebus_transfer_first":Title="最少换乘";break;
+//   case "ebus_walk_first":Title="步行最少";break;
+//   default:Title="步行最少";break;
+//   }
+//
+//   api.actionSheet({
+//     title: Title,
+//     cancelTitle: '默认',
+//   //    destructiveTitle: '红色警告按钮',
+//     buttons: [rote[0], rote[1]]
+//   }, function(ret6, err6) {
+//     var index = ret6.buttonIndex;
+//     if(index==3){
+//       index=1;
+//     }
+//
+//     var Number=B[index-1].busNumber.replace(/[^0-9]+/g, '');
+//     var Name=B[index-1].startStation+'-'+B[index-1].endStation;
+//     var BusName;
+//     api.ajax({
+//         url: 'http://47.106.219.51/BusPartner/route/'+Number,
+//         method: 'get',
+//         data: {
+//         }
+//     }, function(retAjax0, errAjax0) {
+//       var x=-1;
+//       var y=-1;
+//       var zheng=0;
+//       var fan=0;
+//       var start;
+//       var direction;
+//       for(var z in retAjax0["正向"]){
+//         zheng++;
+//       }
+//       for(var k in retAjax0["反向"]){
+//         fan++;
+//       }
+//     //  alert(JSON.stringify(retAjax0["正向"]))
+//     //  alert(zheng);
+//     for(var i=0;i<zheng;i++){
+//     //  alert(retAjax0["正向"][i].name)
+//       if(retAjax0["正向"][i].name==B[index-1].startStation){
+//         x=i;
+//       }
+//       if(retAjax0["正向"][i].name==B[index-1].endStation){
+//         y=i;
+//       }
+//     }
+//     if(x!=-1&&y!=-1){
+//       if(x<y){
+//         BusName=Number+'路'+'('+retAjax0["正向"][0].name+'-'+retAjax0["正向"][zheng-1].name+')';
+//     start=x;
+//     direction="正向";
+//     alert(BusName);
+//       }else{
+//         BusName=Number+'路'+'('+retAjax0["反向"][0].name+'-'+retAjax0["反向"][fan-1].name+')';
+//
+//         for(var i=0;i<fan;i++){
+//           if(retAjax0["反向"][i].name==B[index-1].startStation){
+//             x=i;
+//           }
+//         }
+//     start=x;
+//     direction="反向";
+//     alert(BusName);
+//       }
+//     }else{
+//       for(var j=0;j<fan;j++){
+//         if(retAjax0["反向"][j].name==B[index-1].startStation){
+//           x=j;
+//         }
+//         if(retAjax0["反向"][j].name==B[index-1].endStation){
+//           y=j;
+//         }
+//       }
+//         BusName=Number+'路'+'('+retAjax0["反向"][0].name+'-'+retAjax0["反向"][fan-1].name+')';
+//     start=x;
+//     direction="反向";
+//     alert(BusName);
+//     }
+//
+//
+//         api.ajax({
+//             url: 'http://47.106.219.51/BusPartner/state/'+BusName,
+//             method: 'get',
+//             data: {
+//             }
+//         }, function(retAjax, errAjax) {
+//
+//
+//           bMap.getLocation({
+//               accuracy: '100m',
+//               autoStop: true,
+//               filter: 1
+//           }, function(retLocation, errloaction) {
+//               if (retLocation.status) {
+//           //获取数据
+//           //alert(JSON.stringify(retLocation));
+//           //alert(retAjax.length);
+//           var BusMessage3=new Array();
+//           var maxNumber=retAjax.length;
+//           var maxNumber3=0;
+//           var position=new Array();
+//           var max;
+//           if(direction=="正向"){
+//             max=zheng;
+//           }else{
+//             max=fan;
+//           }
+//           var select=0;
+//           for(var i=0;i<maxNumber;i++){
+//             var judge;
+//             for(var p=0;p<max;p++){
+//               if(retAjax0[direction][p].name==retAjax[i].lastStation)
+//               {
+//                 judge=p;
+//               }
+//             }
+//
+//             if(judge<start){
+//               maxNumber3=maxNumber3+1;
+//           BusMessage3[select]=new Object();
+//           position[select]=new Object();
+//           position[select].id=select;
+//           position[select].lon=retAjax[i].longitude;
+//           position[select].lat=retAjax[i].latitude;
+//           function Rad(d){
+//             return d * Math.PI / 180.0;//经纬度转换成三角函数中度分表形式。
+//           }
+//           function GetDistance(lat1,lng1,lat2,lng2){
+//
+//                   var radLat1 = Rad(lat1);
+//                   var radLat2 = Rad(lat2);
+//                   var a = radLat1 - radLat2;
+//                   var  b = Rad(lng1) - Rad(lng2);
+//                   var s = 2 * Math.asin(Math.sqrt(Math.pow(Math.sin(a/2),2) +
+//                   Math.cos(radLat1)*Math.cos(radLat2)*Math.pow(Math.sin(b/2),2)));
+//                   s = s *6378.137 ;// EARTH_RADIUS;
+//                   s = Math.round(s * 10000) / 10000; //输出为公里
+//                   //s=s.toFixed(4);
+//                   return s;
+//               }
+//           BusMessage3[select].distance=GetDistance(retAjax[i].latitude,retAjax[i].longitude,retLocation.lat,retLocation.lon).toFixed(1);
+//           BusMessage3[select].peopleNum=retAjax[i].passengerNum;
+//           BusMessage3[select].carNum=retAjax[i].bus.carNum;
+//           BusMessage3[select].maxNum=retAjax[i].bus.seatNum;
+//           select++;
+//           }
+//           }
+//
+//           //画位置
+//
+//           bMap.addAnnotations({
+//               annotations: position,
+//               icon: 'widget://',
+//               draggable: true
+//           }, function(retAnnot) {
+//               if (retAnnot) {
+//                 bMap.setBubble({
+//                     id: retAnnot.id,
+//                     bgImg: 'widget://image//busBackground.png',
+//                     content: {
+//                       title: "载客:"+BusMessage3[retAnnot.id].peopleNum+"人 "+"核载:"+BusMessage3[retAnnot.id].maxNum+"人",
+//                       subTitle: BusMessage3[retAnnot.id].carNum+"距我"+BusMessage3[retAnnot.id].distance+"公里",
+//                         illus: 'http://ico.ooopic.com/ajax/iconpng/?id=145044.png'
+//                     },
+//                     styles: {
+//                         titleColor: '#000',
+//                         titleSize: 16,
+//                         subTitleColor: '#4c4b4b',
+//                         subTitleSize: 14,
+//                         illusAlign: 'left'
+//                     }
+//                 }, function(retBubble) {
+//                     if (retBubble) {
+//           //              alert(JSON.stringify(ret));
+//           bMap.closeBubble({
+//               id: retAnnot.id
+//           });
+//                     }
+//                 });
+//
+//               }
+//           });
+//
+//
+//           //画位置结束
+//           var len = maxNumber3;
+//           　　var minIndex, temp;
+//           　　for (var i = 0; i < len - 1; i++) {
+//           　　　　minIndex = i;
+//           　　　　for (var j = i + 1; j < len; j++) {
+//           　　　　　　if (BusMessage3[j].distance < BusMessage3[minIndex].distance) { //寻找最小的数
+//           　　　　　　　　minIndex = j; //将最小数的索引保存
+//           　　　　　　}
+//           　　　　}
+//           　　　　temp = BusMessage3[i];
+//           　　　　BusMessage3[i] = BusMessage3[minIndex];
+//           　　　　BusMessage3[minIndex] = temp;
+//           　　}
+//           //alert(BusMessage[1].distance)
+//           //alert(BusMessage[0].distance);
+//           //alert(BusMessage[1].distance);
+//           //数据范围提升
+//           // 经度 纬度 人数 车牌号 与我距离
+//           //  $api.setStorage("BusMessage3",BusMessage3);
+//           //  $api.setStorage("maxNumber3",maxNumber3);
+//
+//           map.drawRoute({
+//                   id: 1,
+//                   autoresizing: true,
+//                   index: index-1,
+//                   styles: {
+//                       start: {
+//                           icon: 'widget://image/bmap_start.png'
+//                       },
+//                       end: {
+//                           icon: 'widget://image/bmap_end.png'
+//                       }
+//                   }
+//               }, function(ret5) {
+//                 var first=ret3.plans[index-1].nodes[ret5.nodeIndex].description.substring(0,13);
+//                 var last=ret3.plans[index-1].nodes[ret5.nodeIndex].description.substring(13,ret3.plans[index-1].nodes[ret5.nodeIndex].description.length);
+//                 bMap.addBillboard({
+//                     id: ret5.nodeIndex,
+//                     coords: {
+//                         lon: ret3.plans[index-1].nodes[ret5.nodeIndex].lon,
+//                         lat: ret3.plans[index-1].nodes[ret5.nodeIndex].lat
+//                     },
+//                     bgImg: '',
+//                     content: {
+//                         title:first,
+//                         subTitle: last,
+//                     },
+//                     styles: {
+//                         titleColor: '#000',
+//                         titleSize: 9,
+//                         subTitleSize: 7,
+//                         illusAlign: 'right'
+//                     }
+//                 }, function(ret) {
+//                   if (ret) {
+//                     bMap.removeAnnotations({
+//                    ids: [ret5.nodeIndex]
+//               });
+//                       alert(ret3.plans[index-1].nodes[ret5.nodeIndex].description);
+//                   }
+//                 });
+//
+//         //              api.alert({ msg: JSON.stringify(ret) });
+//               });
+//         //绘制线路成功
+//         var Number=B[index-1].busNumber.replace(/[^0-9]+/g, '');
+//         var Name=B[index-1].startStation+'-'+B[index-1].endStation;
+//         //传递底部参数
+//         //打开底部
+//         api.openFrame({
+//         name: 'bottom',
+//         url: 'busNumber.html',
+//         rect: {
+//         x: 0,
+//         y: 440,
+//         w: 360,
+//         h: 250
+//         },
+//         pageParam: {
+//           number:Number,
+//           name:Name,
+//           busMessage:BusMessage3,
+//           maxNumber:maxNumber3
+//         },
+//         reload:true,
+//         bounces: false,
+//         allowEdit:true,
+//         bgColor: 'rgba(0,0,0,0)',
+//         vScrollBarEnabled: false,
+//         hScrollBarEnabled: false
+//         });
+//
+//
+//           } else {
+//               alert(err7.code);
+//           }
+//           });
+//     //获取信息结束
+//     // var BusMessage3=new Array();
+//     // BusMessage3=$api.getStorage("BusMessage3");
+//     // var maxNumber3=$api.getStorage("maxNumber3");
+//
+//
+//
+//
+//
+// });
+//   });
+// });
+//
+//
+//
+// }
+//
+// if(planNumber==1){
+//
+//   for(var i=0;i<1;i++){
+//   var A={};
+//   var startStation=JSON.stringify(ret3.plans[i].nodes[0].description);
+//   var pattern =/达(.+?)站/g;
+//   var text=startStation.match(pattern);
+//    A.startStation=text.toString().replace(/(达|站)/g, "");
+//
+//   var busNumber=JSON.stringify(ret3.plans[i].nodes[1].description);
+//   var pattern =/坐(.+?)路/g;
+//   var text=busNumber.match(pattern);
+//    A.busNumber=text.toString().replace(/(坐)/g, "");
+//
+//   var stationNumber=JSON.stringify(ret3.plans[i].nodes[1].description);
+//   var pattern =/过(.+?)站/g;
+//   var text=stationNumber.match(pattern);
+//    A.stationNumber=text.toString().replace(/(过|站)/g, "");
+//
+//   var endStation=JSON.stringify(ret3.plans[i].nodes[1].description);
+//   var pattern =/达(.+?)站/g;
+//   var text=endStation.match(pattern);
+//    A.endStation=text.toString().replace(/(达|站)/g, "");
+//
+//   rote[i]=A.startStation+'->'+A.busNumber+'('+A.stationNumber+')'+'->'+A.endStation;
+//   B[i]=A;
+//   }
+//   var Title;
+//   switch(Policy){
+//   case "ebus_time_first":Title="时间优先";break;
+//   case "ebus_transfer_first":Title="最少换乘";break;
+//   case "ebus_walk_first":Title="步行最少";break;
+//   default:Title="步行最少";break;
+//   }
+//
+//   api.actionSheet({
+//     title: Title,
+//     cancelTitle: '默认',
+//   //    destructiveTitle: '红色警告按钮',
+//     buttons: [rote[0]]
+//   }, function(ret7, err7) {
+//     var index = ret7.buttonIndex;
+//     if(index==2){
+//       index=1;
+//     }
+//
+//
+//         var Number=B[index-1].busNumber.replace(/[^0-9]+/g, '');
+//         var Name=B[index-1].startStation+'-'+B[index-1].endStation;
+//         var BusName;
+//         api.ajax({
+//             url: 'http://47.106.219.51/BusPartner/route/'+Number,
+//             method: 'get',
+//             data: {
+//             }
+//         }, function(retAjax0, errAjax0) {
+//           var x=-1;
+//           var y=-1;
+//           var zheng=0;
+//           var fan=0;
+//           var start;
+//           var direction;
+//           for(var z in retAjax0["正向"]){
+//             zheng++;
+//           }
+//           for(var k in retAjax0["反向"]){
+//             fan++;
+//           }
+//         //  alert(JSON.stringify(retAjax0["正向"]))
+//         //  alert(zheng);
+//         for(var i=0;i<zheng;i++){
+//         //  alert(retAjax0["正向"][i].name)
+//           if(retAjax0["正向"][i].name==B[index-1].startStation){
+//             x=i;
+//           }
+//           if(retAjax0["正向"][i].name==B[index-1].endStation){
+//             y=i;
+//           }
+//         }
+//         if(x!=-1&&y!=-1){
+//           if(x<y){
+//             BusName=Number+'路'+'('+retAjax0["正向"][0].name+'-'+retAjax0["正向"][zheng-1].name+')';
+//         start=x;
+//         direction="正向";
+//         alert(BusName);
+//           }else{
+//             BusName=Number+'路'+'('+retAjax0["反向"][0].name+'-'+retAjax0["反向"][fan-1].name+')';
+//
+//             for(var i=0;i<fan;i++){
+//               if(retAjax0["反向"][i].name==B[index-1].startStation){
+//                 x=i;
+//               }
+//             }
+//         start=x;
+//         direction="反向";
+//         alert(BusName);
+//           }
+//         }else{
+//           for(var j=0;j<fan;j++){
+//             if(retAjax0["反向"][j].name==B[index-1].startStation){
+//               x=j;
+//             }
+//             if(retAjax0["反向"][j].name==B[index-1].endStation){
+//               y=j;
+//             }
+//           }
+//             BusName=Number+'路'+'('+retAjax0["反向"][0].name+'-'+retAjax0["反向"][fan-1].name+')';
+//         start=x;
+//         direction="反向";
+//         alert(BusName);
+//         }
+//
+//
+//             api.ajax({
+//                 url: 'http://47.106.219.51/BusPartner/state/'+BusName,
+//                 method: 'get',
+//                 data: {
+//                 }
+//             }, function(retAjax, errAjax) {
+//
+//
+//               bMap.getLocation({
+//                   accuracy: '100m',
+//                   autoStop: true,
+//                   filter: 1
+//               }, function(retLocation, errloaction) {
+//                   if (retLocation.status) {
+//               //获取数据
+//               //alert(JSON.stringify(retLocation));
+//               //alert(retAjax.length);
+//               var BusMessage4=new Array();
+//               var maxNumber=retAjax.length;
+//               var maxNumber4=0;
+//               var position=new Array();
+//               var max;
+//               if(direction=="正向"){
+//                 max=zheng;
+//               }else{
+//                 max=fan;
+//               }
+//               var select=0;
+//               for(var i=0;i<maxNumber;i++){
+//                 var judge;
+//                 for(var p=0;p<max;p++){
+//                   if(retAjax0[direction][p].name==retAjax[i].lastStation)
+//                   {
+//                     judge=p;
+//                   }
+//                 }
+//
+//                 if(judge<start){
+//                   maxNumber4=maxNumber4+1;
+//               BusMessage4[select]=new Object();
+//               position[select]=new Object();
+//               position[select].id=select;
+//               position[select].lon=retAjax[i].longitude;
+//               position[select].lat=retAjax[i].latitude;
+//               function Rad(d){
+//                 return d * Math.PI / 180.0;//经纬度转换成三角函数中度分表形式。
+//               }
+//               function GetDistance(lat1,lng1,lat2,lng2){
+//
+//                       var radLat1 = Rad(lat1);
+//                       var radLat2 = Rad(lat2);
+//                       var a = radLat1 - radLat2;
+//                       var  b = Rad(lng1) - Rad(lng2);
+//                       var s = 2 * Math.asin(Math.sqrt(Math.pow(Math.sin(a/2),2) +
+//                       Math.cos(radLat1)*Math.cos(radLat2)*Math.pow(Math.sin(b/2),2)));
+//                       s = s *6378.137 ;// EARTH_RADIUS;
+//                       s = Math.round(s * 10000) / 10000; //输出为公里
+//                       //s=s.toFixed(4);
+//                       return s;
+//                   }
+//               BusMessage4[select].distance=GetDistance(retAjax[i].latitude,retAjax[i].longitude,retLocation.lat,retLocation.lon).toFixed(1);
+//               BusMessage4[select].peopleNum=retAjax[i].passengerNum;
+//               BusMessage4[select].carNum=retAjax[i].bus.carNum;
+//               BusMessage4[select].maxNum=retAjax[i].bus.seatNum;
+//               select++;
+//               }
+//               }
+//
+//               //画位置
+//
+//               bMap.addAnnotations({
+//                   annotations: position,
+//                   icon: 'widget://',
+//                   draggable: true
+//               }, function(retAnnot) {
+//                   if (retAnnot) {
+//                     bMap.setBubble({
+//                         id: retAnnot.id,
+//                         bgImg: 'widget://image//busBackground.png',
+//                         content: {
+//                           title: "载客:"+BusMessage4[retAnnot.id].peopleNum+"人 "+"核载:"+BusMessage4[retAnnot.id].maxNum+"人",
+//                           subTitle: BusMessage4[retAnnot.id].carNum+"距我"+BusMessage4[retAnnot.id].distance+"公里",
+//                             illus: 'http://ico.ooopic.com/ajax/iconpng/?id=145044.png'
+//                         },
+//                         styles: {
+//                             titleColor: '#000',
+//                             titleSize: 16,
+//                             subTitleColor: '#4c4b4b',
+//                             subTitleSize: 14,
+//                             illusAlign: 'left'
+//                         }
+//                     }, function(retBubble) {
+//                         if (retBubble) {
+//               //              alert(JSON.stringify(ret));
+//               bMap.closeBubble({
+//                   id: retAnnot.id
+//               });
+//                         }
+//                     });
+//
+//                   }
+//               });
+//
+//
+//               //画位置结束
+//               var len = maxNumber4;
+//               　　var minIndex, temp;
+//               　　for (var i = 0; i < len - 1; i++) {
+//               　　　　minIndex = i;
+//               　　　　for (var j = i + 1; j < len; j++) {
+//               　　　　　　if (BusMessage4[j].distance < BusMessage4[minIndex].distance) { //寻找最小的数
+//               　　　　　　　　minIndex = j; //将最小数的索引保存
+//               　　　　　　}
+//               　　　　}
+//               　　　　temp = BusMessage4[i];
+//               　　　　BusMessage4[i] = BusMessage4[minIndex];
+//               　　　　BusMessage4[minIndex] = temp;
+//               　　}
+//               //alert(BusMessage[1].distance)
+//               //alert(BusMessage[0].distance);
+//               //alert(BusMessage[1].distance);
+//               //数据范围提升
+//               // 经度 纬度 人数 车牌号 与我距离
+//               //  $api.setStorage("BusMessage4",BusMessage4);
+//               //  $api.setStorage("maxNumber4",maxNumber4);
+//               map.drawRoute({
+//                       id: 1,
+//                       autoresizing: true,
+//                       index: index-1,
+//                       styles: {
+//                           start: {
+//                               icon: 'widget://image/bmap_start.png'
+//                           },
+//                           end: {
+//                               icon: 'widget://image/bmap_end.png'
+//                           }
+//                       }
+//                   }, function(ret5) {
+//                     var first=ret3.plans[index-1].nodes[ret5.nodeIndex].description.substring(0,13);
+//                     var last=ret3.plans[index-1].nodes[ret5.nodeIndex].description.substring(13,ret3.plans[index-1].nodes[ret5.nodeIndex].description.length);
+//                     bMap.addBillboard({
+//                         id: ret5.nodeIndex,
+//                         coords: {
+//                             lon: ret3.plans[index-1].nodes[ret5.nodeIndex].lon,
+//                             lat: ret3.plans[index-1].nodes[ret5.nodeIndex].lat
+//                         },
+//                         bgImg: '',
+//                         content: {
+//                             title:first,
+//                             subTitle: last,
+//                         },
+//                         styles: {
+//                             titleColor: '#000',
+//                             titleSize: 9,
+//                             subTitleSize: 7,
+//                             illusAlign: 'right'
+//                         }
+//                     }, function(ret) {
+//                       if (ret) {
+//                         bMap.removeAnnotations({
+//                        ids: [ret5.nodeIndex]
+//                   });
+//                           alert(ret3.plans[index-1].nodes[ret5.nodeIndex].description);
+//                       }        });
+//
+//             //              api.alert({ msg: JSON.stringify(ret) });
+//                   });
+//             //绘制线路成功
+//             var Number=B[index-1].busNumber.replace(/[^0-9]+/g, '');
+//             var Name=B[index-1].startStation+'-'+B[index-1].endStation;
+//             //传递底部参数
+//             //打开底部
+//             api.openFrame({
+//             name: 'bottom',
+//             url: 'busNumber.html',
+//             rect: {
+//             x: 0,
+//             y: 440,
+//             w: 360,
+//             h: 250
+//             },
+//             pageParam: {
+//             number:Number,
+//             name:Name,
+//             busMessage:BusMessage4,
+//             maxNumber:maxNumber4
+//             },
+//             reload:true,
+//             bounces: false,
+//             allowEdit:true,
+//             bgColor: 'rgba(0,0,0,0)',
+//             vScrollBarEnabled: false,
+//             hScrollBarEnabled: false
+//             });
+//
+//               } else {
+//                   alert(err7.code);
+//               }
+//               });
+//         //获取信息结束
+//         // var BusMessage4=new Array();
+//         // BusMessage4=$api.getStorage("BusMessage4");
+//         // var maxNumber4=$api.getStorage("maxNumber4");
+//
+//
+//
+//
+// });
+// });
+//
+//   });
+//
+//
+// }
+
+
+//总路线
+//    api.alert({ msg: JSON.stringify(ret3) });
+            }
+            else{
+              alert("未搜索到公交线路，可能是您输入的地点有误");
+              api.openFrame({
+              name: 'bottom',
+              url: 'busNumber.html',
+              rect: {
+              x: 0,
+              y: 440,
+              w: 360,
+              h: 250
+              },
+              pageParam: {
+              number:"武汉",
+              name:"每天不一样"
+              },
+              reload:true,
+              bounces: false,
+              allowEdit:true,
+              bgColor: 'rgba(0,0,0,0)',
+              vScrollBarEnabled: false,
+              hScrollBarEnabled: false
+              });
+            }
+          });
+        }else{
+          alert("定位错误!");
+        }
+          });
+      });
+    }else{
+    alert("您输入的地址有误");
+    api.openFrame({
+    name: 'bottom',
+    url: 'busNumber.html',
+    rect: {
+    x: 0,
+    y: 440,
+    w: 360,
+    h: 250
+    },
+    pageParam: {
+      number:"武汉",
+      name:"每天不一样"
+    },
+    reload:true,
+    bounces: false,
+    allowEdit:true,
+    bgColor: 'rgba(0,0,0,0)',
+    vScrollBarEnabled: false,
+    hScrollBarEnabled: false
+    });
+  }
+  });
+}
+
+//公交线路搜索
+
+
+else{
+//alert("数字不为空");
+
+//公交车线路绘制
+bMap.searchBusRoute({
+    city: city,
+//公交车线路
+    line: searchNumber
+},function(ret0, err0){
+//线路方向
+if(ret0.status&&ret0.results[0]!=null){
+//  alert(JSON.stringify(ret0));
+    var select1=ret0.results[0].name;
+    var reg1 =/[^\(\)]+(?=\))/g;
+    var res1 = select1.match(reg1);
+
+    var select2=ret0.results[1].name;
+    var reg2=/[^\(\)]+(?=\))/g;
+    var res2= select2.match(reg2);
+    api.actionSheet({
+        title: '方向选择',
+        cancelTitle: '默认',
+        buttons: [res1[0],res2[0]]
+    }, function(ret2, err2) {
+    var index = ret2.buttonIndex;
+//    alert(index);//1 2
+    var results = ret0.results;
+
+if(index==2){
+//传输线路名称加方向（反方向）
+// 表单方式提交数据或文件
+var BusName=searchNumber+"路"+"("+res2[0]+")";
+api.ajax({
+    url: 'http://47.106.219.51/BusPartner/state/'+BusName,
+    method: 'get',
+    data: {
+    }
+}, function(retAjax, errAjax) {
+
+    if (JSON.stringify(retAjax)!="") {
+//        alert(ret[1].latitude);
+
+bMap.getLocation({
+    accuracy: '100m',
+    autoStop: true,
+    filter: 1
+}, function(retLocation, errloaction) {
+    if (retLocation.status) {
+//获取数据
+//alert(JSON.stringify(retLocation));
+//alert(retAjax.length);
+var BusMessage=new Array();
+var maxNumber=retAjax.length;
+var position=new Array();
+for(var i=0;i<maxNumber;i++){
+BusMessage[i]=new Object();
+position[i]=new Object();
+position[i].id=i;
+position[i].lon=retAjax[i].longitude;
+position[i].lat=retAjax[i].latitude;
+function Rad(d){
+  return d * Math.PI / 180.0;//经纬度转换成三角函数中度分表形式。
+}
+function GetDistance(lat1,lng1,lat2,lng2){
+
+        var radLat1 = Rad(lat1);
+        var radLat2 = Rad(lat2);
+        var a = radLat1 - radLat2;
+        var  b = Rad(lng1) - Rad(lng2);
+        var s = 2 * Math.asin(Math.sqrt(Math.pow(Math.sin(a/2),2) +
+        Math.cos(radLat1)*Math.cos(radLat2)*Math.pow(Math.sin(b/2),2)));
+        s = s *6378.137 ;// EARTH_RADIUS;
+        s = Math.round(s * 10000) / 10000; //输出为公里
+        //s=s.toFixed(4);
+        return s;
+    }
+BusMessage[i].distance=GetDistance(retAjax[i].latitude,retAjax[i].longitude,retLocation.lat,retLocation.lon).toFixed(1);
+BusMessage[i].peopleNum=retAjax[i].passengerNum;
+BusMessage[i].carNum=retAjax[i].bus.carNum;
+BusMessage[i].maxNum=retAjax[i].bus.seatNum;
+}
+
+//画位置
+
+bMap.addAnnotations({
+    annotations: position,
+    icon: 'widget://',
+    draggable: true
+}, function(retAnnot) {
+    if (retAnnot) {
+      bMap.setBubble({
+          id: retAnnot.id,
+          bgImg: 'widget://image//busBackground.png',
+          content: {
+              title: "载客:"+retAjax[retAnnot.id].passengerNum+"人 "+"核载:"+retAjax[retAnnot.id].bus.seatNum+"人",
+              subTitle: retAjax[retAnnot.id].bus.carNum+"距我"+BusMessage[retAnnot.id].distance+"公里",
+              illus: 'http://ico.ooopic.com/ajax/iconpng/?id=145044.png'
+          },
+          styles: {
+              titleColor: '#000',
+              titleSize: 16,
+              subTitleColor: '#4c4b4b',
+              subTitleSize: 14,
+              illusAlign: 'left'
+          }
+      }, function(retBubble) {
+          if (retBubble) {
+//              alert(JSON.stringify(ret));
+bMap.closeBubble({
+    id: retAnnot.id
+});
+          }
+      });
+
+    }
+});
+
+
+//画位置结束
+
+//alert(BusMessage[1].distance)
+//alert(BusMessage[0].distance);
+//alert(BusMessage[1].distance);
+//数据范围提升
+// 经度 纬度 人数 车牌号 与我距离
+//传输结束
+//收到数据
+
+//alert(BusMessage[1].distance);
+//按照距离排序
+var len = maxNumber;
+　　var minIndex, temp;
+　　for (var i = 0; i < len - 1; i++) {
+　　　　minIndex = i;
+　　　　for (var j = i + 1; j < len; j++) {
+　　　　　　if (BusMessage[j].distance < BusMessage[minIndex].distance) { //寻找最小的数
+　　　　　　　　minIndex = j; //将最小数的索引保存
+　　　　　　}
+　　　　}
+　　　　temp = BusMessage[i];
+　　　　BusMessage[i] = BusMessage[minIndex];
+　　　　BusMessage[minIndex] = temp;
+　　}
+//排序结束
+//数据存储完成
+
+
+
+  var res = results[1];
+  bMap.drawBusRoute({
+      id: 2,
+      autoresizing:true,
+      city: res.city,
+      uid: res.uid,
+      nodeShow: false
+  },function(ret1){
+    if(ret1.eventType=='click'){
+ //alert(JSON.stringify(ret1));
+//绘制线路成功
+//点击公交车站
+
+api.ajax({
+    url: 'http://47.106.219.51/BusPartner/route/'+searchNumber,
+    method: 'get',
+    data: {
+    }
+}, function(ret, err) {
+    if (JSON.stringify(ret)!="") {
+//        alert(ret['反向'][ret1.nodeIndex].name);
+
+        //              alert(JSON.stringify(ret1.nodeIndex));
+        //          alert(ret['正向'][ret1.nodeIndex].name);
+
+                  bMap.addBillboard({
+                      id: ret1.nodeIndex,
+                      coords: {
+                          lon: ret['反向'][ret1.nodeIndex].longitude,
+                          lat: ret['反向'][ret1.nodeIndex].latitude
+                      },
+                      bgImg: '',
+                      content: {
+                          title:ret['反向'][ret1.nodeIndex].name,
+        //                  subTitle: ret['正向'][ret1.nodeIndex].name,
+                      },
+                      styles: {
+                          titleColor: '#000',
+                          titleSize: 12,
+        //                  subTitleSize: 7,
+                          illusAlign: 'right'
+                      }
+                  }, function(ret10) {
+                      if (ret10) {
+                        bMap.removeAnnotations({
+                       ids: [ret1.nodeIndex]
+                  });
+                          alert(ret['反向'][ret1.nodeIndex].name);
+                      }
+                  });
+
+
+    } else {
+        alert("获取公交数组失败");
+        api.openFrame({
+           name: 'bottom',
+           url: 'busNumber.html',
+           rect: {
+               x: 0,
+               y: 440,
+               w: 360,
+               h: 250
+           },
+           pageParam: {
+               name: ''
+           },
+           reload:true,
+           bounces: false,
+           allowEdit:true,
+           bgColor: 'rgba(0,0,0,0)',
+           vScrollBarEnabled: false,
+           hScrollBarEnabled: false
+        });
+    }
+});
+   }
+//点击事件
+//if(ret1.eventType=='click'){
+//  ret.stations[nodeIndex].description;
+//alert("点击了");
+//alert(ret1.stations[0].description);
+
+/**
+bMap.addBillboard({
+    id: 4,
+    coords: {
+        lon:ret1.stations[ret1.nodeIndex].lon,
+        lat:ret1.stations[ret1.nodeIndex].lat
+    },
+    bgImg: 'widget://image/bMapTest.png',
+    content: {
+        title: ret1.stations[ret1.nodeIndex].description,
+        subTitle:  ret1.stations[ret1.nodeIndex].description,
+        illus: 'http://ico.ooopic.com/ajax/iconpng/?id=145044.png'
+    },
+    styles: {
+        titleColor: '#000',
+        titleSize: 16,
+        subTitleColor: '#999',
+        subTitleSize: 12,
+        illusAlign: 'left'
+    }
+}, function(ret) {
+    if (ret) {
+        alert(JSON.stringify(ret));
+    }
+});
+**/
+//}
+//alert(JSON.stringify(ret1));
+//else{
+
+      // if(ret.status){
+      //     alert(JSON.stringify(ret));
+      //
+      // }else{
+      //     alert(JSON.stringify(err));
+      // }
+//}
+
+//数据展示
+// var test=JSON.stringify(ret1);
+// api.openFrame({
+//     name: 'page2',
+//     url:  'test.html',
+//     rect: {
+//         x: 0,
+//         y: 0,
+//         w: 340,
+//         h: 450
+//     },
+//     pageParam: {
+//         name: test
+//     },
+//     allowEdit:true,
+//     bounces: true,
+//     bgColor: 'rgba(0,0,0,0)',
+//     vScrollBarEnabled: true,
+//     hScrollBarEnabled: true
+// });
+//数据展示结束
+
+  });
+  var Number=ret0.results[0].name.replace(/[^0-9]+/g, '');
+  var Name=res2;
+
+
+
+
+  //传递底部参数
+  //打开底部
+
+  api.openFrame({
+  name: 'bottom',
+  url: 'busNumber.html',
+  rect: {
+  x: 0,
+  y: 440,
+  w: 360,
+  h: 250
+  },
+  pageParam: {
+  number:Number,
+  name:Name,
+  busMessage:BusMessage,
+  maxNumber:maxNumber
+  },
+  reload:true,
+  bounces: false,
+  bgColor: 'rgba(0,0,0,0)',
+  vScrollBarEnabled: false,
+  hScrollBarEnabled: false
+  });
+
+  api.addEventListener({
+      name: 'myapp'
+  }, function(ret, err) {
+ // alert(position[1]);
+var Ids=new Array();
+for(var i1=0;position[i1];i1++){
+  Ids[i1]=i1;
+}
+    bMap.removeAnnotations({
+         ids: Ids
+    });
+      // alert("333");
+      //传输线路名称加方向（反方向）
+      // 表单方式提交数据或文件
+      var BusName=searchNumber+"路"+"("+res2[0]+")";
+      api.ajax({
+          url: 'http://47.106.219.51/BusPartner/state/'+BusName,
+          method: 'get',
+          data: {
+          }
+      }, function(retAjax, errAjax) {
+
+          if (JSON.stringify(retAjax)!="") {
+      //        alert(ret[1].latitude);
+
+      bMap.getLocation({
+          accuracy: '100m',
+          autoStop: true,
+          filter: 1
+      }, function(retLocation, errloaction) {
+          if (retLocation.status) {
+      //获取数据
+      //alert(JSON.stringify(retLocation));
+      //alert(retAjax.length);
+      var BusMessage=new Array();
+      var maxNumber=retAjax.length;
+      var position=new Array();
+      for(var i=0;i<maxNumber;i++){
+      BusMessage[i]=new Object();
+      position[i]=new Object();
+      position[i].id=i;
+      position[i].lon=retAjax[i].longitude;
+      position[i].lat=retAjax[i].latitude;
+      function Rad(d){
+        return d * Math.PI / 180.0;//经纬度转换成三角函数中度分表形式。
+      }
+      function GetDistance(lat1,lng1,lat2,lng2){
+
+              var radLat1 = Rad(lat1);
+              var radLat2 = Rad(lat2);
+              var a = radLat1 - radLat2;
+              var  b = Rad(lng1) - Rad(lng2);
+              var s = 2 * Math.asin(Math.sqrt(Math.pow(Math.sin(a/2),2) +
+              Math.cos(radLat1)*Math.cos(radLat2)*Math.pow(Math.sin(b/2),2)));
+              s = s *6378.137 ;// EARTH_RADIUS;
+              s = Math.round(s * 10000) / 10000; //输出为公里
+              //s=s.toFixed(4);
+              return s;
+          }
+      BusMessage[i].distance=GetDistance(retAjax[i].latitude,retAjax[i].longitude,retLocation.lat,retLocation.lon).toFixed(1);
+      BusMessage[i].peopleNum=retAjax[i].passengerNum;
+      BusMessage[i].carNum=retAjax[i].bus.carNum;
+      BusMessage[i].maxNum=retAjax[i].bus.seatNum;
+      }
+
+      //画位置
+
+      bMap.addAnnotations({
+          annotations: position,
+          icon: 'widget://',
+          draggable: true
+      }, function(retAnnot) {
+          if (retAnnot) {
+            bMap.setBubble({
+                id: retAnnot.id,
+                bgImg: 'widget://image//busBackground.png',
+                content: {
+                    title: "载客:"+retAjax[retAnnot.id].passengerNum+"人 "+"核载:"+retAjax[retAnnot.id].bus.seatNum+"人",
+                    subTitle: retAjax[retAnnot.id].bus.carNum+"距我"+BusMessage[retAnnot.id].distance+"公里",
+                    illus: 'http://ico.ooopic.com/ajax/iconpng/?id=145044.png'
+                },
+                styles: {
+                    titleColor: '#000',
+                    titleSize: 16,
+                    subTitleColor: '#4c4b4b',
+                    subTitleSize: 14,
+                    illusAlign: 'left'
+                }
+            }, function(retBubble) {
+                if (retBubble) {
+      //              alert(JSON.stringify(ret));
+      bMap.closeBubble({
+          id: retAnnot.id
+      });
+                }
+            });
+
+          }
+      });
+
+
+      //画位置结束
+
+      //alert(BusMessage[1].distance)
+      //alert(BusMessage[0].distance);
+      //alert(BusMessage[1].distance);
+      //数据范围提升
+      // 经度 纬度 人数 车牌号 与我距离
+      //传输结束
+      //收到数据
+
+      //alert(BusMessage[1].distance);
+      //按照距离排序
+      var len = maxNumber;
+      　　var minIndex, temp;
+      　　for (var i = 0; i < len - 1; i++) {
+      　　　　minIndex = i;
+      　　　　for (var j = i + 1; j < len; j++) {
+      　　　　　　if (BusMessage[j].distance < BusMessage[minIndex].distance) { //寻找最小的数
+      　　　　　　　　minIndex = j; //将最小数的索引保存
+      　　　　　　}
+      　　　　}
+      　　　　temp = BusMessage[i];
+      　　　　BusMessage[i] = BusMessage[minIndex];
+      　　　　BusMessage[minIndex] = temp;
+      　　}
+      //排序结束
+      //数据存储完成
+
+
+
+        var res = results[1];
+        bMap.drawBusRoute({
+            id: 2,
+            autoresizing:true,
+            city: res.city,
+            uid: res.uid,
+            nodeShow: false
+        },function(ret1){
+          if(ret1.eventType=='click'){
+       //alert(JSON.stringify(ret1));
+
+
+      //绘制线路成功
+      //点击公交车站
+
+      api.ajax({
+          url: 'http://47.106.219.51/BusPartner/route/'+searchNumber,
+          method: 'get',
+          data: {
+          }
+      }, function(ret, err) {
+          if (JSON.stringify(ret)!="") {
+      //        alert(ret['反向'][ret1.nodeIndex].name);
+
+              //              alert(JSON.stringify(ret1.nodeIndex));
+              //          alert(ret['正向'][ret1.nodeIndex].name);
+
+                        bMap.addBillboard({
+                            id: ret1.nodeIndex,
+                            coords: {
+                                lon: ret['反向'][ret1.nodeIndex].longitude,
+                                lat: ret['反向'][ret1.nodeIndex].latitude
+                            },
+                            bgImg: '',
+                            content: {
+                                title:ret['反向'][ret1.nodeIndex].name,
+              //                  subTitle: ret['正向'][ret1.nodeIndex].name,
+                            },
+                            styles: {
+                                titleColor: '#000',
+                                titleSize: 12,
+              //                  subTitleSize: 7,
+                                illusAlign: 'right'
+                            }
+                        }, function(ret10) {
+                            if (ret10) {
+                              bMap.removeAnnotations({
+                             ids: [ret1.nodeIndex]
+                        });
+                                alert(ret['反向'][ret1.nodeIndex].name);
+                            }
+                        });
+
+
+          } else {
+              alert("获取公交数组失败");
+              api.openFrame({
+                 name: 'bottom',
+                 url: 'busNumber.html',
+                 rect: {
+                     x: 0,
+                     y: 440,
+                     w: 360,
+                     h: 250
+                 },
+                 pageParam: {
+                     name: ''
+                 },
+                 reload:true,
+                 bounces: false,
+                 allowEdit:true,
+                 bgColor: 'rgba(0,0,0,0)',
+                 vScrollBarEnabled: false,
+                 hScrollBarEnabled: false
+              });
+          }
+      });
+         }
+      //点击事件
+      //if(ret1.eventType=='click'){
+      //  ret.stations[nodeIndex].description;
+      //alert("点击了");
+      //alert(ret1.stations[0].description);
+
+      /**
+      bMap.addBillboard({
+          id: 4,
+          coords: {
+              lon:ret1.stations[ret1.nodeIndex].lon,
+              lat:ret1.stations[ret1.nodeIndex].lat
+          },
+          bgImg: 'widget://image/bMapTest.png',
+          content: {
+              title: ret1.stations[ret1.nodeIndex].description,
+              subTitle:  ret1.stations[ret1.nodeIndex].description,
+              illus: 'http://ico.ooopic.com/ajax/iconpng/?id=145044.png'
+          },
+          styles: {
+              titleColor: '#000',
+              titleSize: 16,
+              subTitleColor: '#999',
+              subTitleSize: 12,
+              illusAlign: 'left'
+          }
+      }, function(ret) {
+          if (ret) {
+              alert(JSON.stringify(ret));
+          }
+      });
+      **/
+      //}
+      //alert(JSON.stringify(ret1));
+      //else{
+
+            // if(ret.status){
+            //     alert(JSON.stringify(ret));
+            //
+            // }else{
+            //     alert(JSON.stringify(err));
+            // }
+      //}
+        });
+        var Number=ret0.results[0].name.replace(/[^0-9]+/g, '');
+        var Name=res2;
+        //传递底部参数
+        //打开底部
+
+        api.openFrame({
+        name: 'bottom',
+        url: 'busNumber.html',
+        rect: {
+        x: 0,
+        y: 440,
+        w: 360,
+        h: 250
+        },
+        pageParam: {
+        number:Number,
+        name:Name,
+        busMessage:BusMessage,
+        maxNumber:maxNumber
+        },
+        reload:true,
+        bounces: false,
+        bgColor: 'rgba(0,0,0,0)',
+        vScrollBarEnabled: false,
+        hScrollBarEnabled: false
+        });
+// alert("3333")
+      } else {
+          alert("定位错误！");
+      }
+      });
+      //数据提取完成
+          } else {
+              alert("后台公交车信息错误!");
+              api.openFrame({
+                 name: 'bottom',
+                 url: 'busNumber.html',
+                 rect: {
+                     x: 0,
+                     y: 440,
+                     w: 360,
+                     h: 250
+                 },
+                 pageParam: {
+                     name: ''
+                 },
+                 reload:true,
+                 bounces: false,
+                 allowEdit:true,
+                 bgColor: 'rgba(0,0,0,0)',
+                 vScrollBarEnabled: false,
+                 hScrollBarEnabled: false
+              });
+          }
+      });
+
+
+
+
+  });
+
+
+
+
+} else {
+    alert("定位错误！");
+}
+});
+//数据提取完成
+    } else {
+        alert("后台公交车信息错误!");
+        api.openFrame({
+           name: 'bottom',
+           url: 'busNumber.html',
+           rect: {
+               x: 0,
+               y: 440,
+               w: 360,
+               h: 250
+           },
+           pageParam: {
+               name: ''
+           },
+           reload:true,
+           bounces: false,
+           allowEdit:true,
+           bgColor: 'rgba(0,0,0,0)',
+           vScrollBarEnabled: false,
+           hScrollBarEnabled: false
+        });
+    }
+});
+
+}else{
+  //传输线路名称加方向（正方向）
+  var BusName=searchNumber+"路"+"("+res1[0]+")";
+
+  api.ajax({
+      url: 'http://47.106.219.51/BusPartner/state/'+BusName,
+      method: 'get',
+      data: {
+      }
+  }, function(retAjax, errAjax) {
+      if (JSON.stringify(retAjax)!="") {
+  //        alert(ret[1].latitude);
+
+  bMap.getLocation({
+      accuracy: '100m',
+      autoStop: true,
+      filter: 1
+  }, function(retLocation, errloaction) {
+      if (retLocation.status) {
+  //获取数据
+  //alert(JSON.stringify(retLocation));
+  //alert(retAjax.length);
+  var BusMessage1=new Array();
+  var maxNumber1=retAjax.length;
+  var position1=new Array();
+  for(var i=0;i<maxNumber1;i++){
+  BusMessage1[i]=new Object();
+  position1[i]=new Object();
+  position1[i].id=i;
+  position1[i].lon=retAjax[i].longitude;
+  position1[i].lat=retAjax[i].latitude;
+  function Rad(d){
+    return d * Math.PI / 180.0;//经纬度转换成三角函数中度分表形式。
+  }
+  function GetDistance(lat1,lng1,lat2,lng2){
+
+          var radLat1 = Rad(lat1);
+          var radLat2 = Rad(lat2);
+          var a = radLat1 - radLat2;
+          var  b = Rad(lng1) - Rad(lng2);
+          var s = 2 * Math.asin(Math.sqrt(Math.pow(Math.sin(a/2),2) +
+          Math.cos(radLat1)*Math.cos(radLat2)*Math.pow(Math.sin(b/2),2)));
+          s = s *6378.137 ;// EARTH_RADIUS;
+          s = Math.round(s * 10000) / 10000; //输出为公里
+          //s=s.toFixed(4);
+          return s;
+      }
+  BusMessage1[i].distance=GetDistance(retAjax[i].latitude,retAjax[i].longitude,retLocation.lat,retLocation.lon).toFixed(1);
+  BusMessage1[i].peopleNum=retAjax[i].passengerNum;
+  BusMessage1[i].carNum=retAjax[i].bus.carNum;
+  BusMessage1[i].maxNum=retAjax[i].bus.seatNum;
+  }
+
+  //画位置
+
+  bMap.addAnnotations({
+      annotations: position1,
+      icon: 'widget://',
+      draggable: true
+  }, function(retAnnot) {
+      if (retAnnot) {
+        bMap.setBubble({
+            id: retAnnot.id,
+            bgImg: 'widget://image//busBackground.png',
+            content: {
+                title: "载客:"+retAjax[retAnnot.id].passengerNum+"人 "+"核载:"+retAjax[retAnnot.id].bus.seatNum+"人",
+                subTitle: retAjax[retAnnot.id].bus.carNum+"距我"+BusMessage1[retAnnot.id].distance+"公里",
+                illus: 'http://ico.ooopic.com/ajax/iconpng/?id=145044.png'
+            },
+            styles: {
+                titleColor: '#000',
+                titleSize: 16,
+                subTitleColor: '#4c4b4b',
+                subTitleSize: 14,
+                illusAlign: 'left'
+            }
+        }, function(retBubble) {
+            if (retBubble) {
+  //              alert(JSON.stringify(ret));
+  bMap.closeBubble({
+      id: retAnnot.id
+  });
+            }
+        });
+
+      }
+  });
+
+
+  //画位置结束
+
+  //alert(BusMessage[1].distance)
+  //alert(BusMessage[0].distance);
+  //alert(BusMessage[1].distance);
+  //数据范围提升
+  // 经度 纬度 人数 车牌号 与我距离
+  // $api.setStorage("BusMessage1",BusMessage1);
+  // $api.setStorage("maxNumber1",maxNumber1);
+  //
+  // //传输结束
+  // //收到数据
+  // var BusMessage1=new Array();
+  // BusMessage1=$api.getStorage("BusMessage1");
+  // var maxNumber1=$api.getStorage("maxNumber1");
+
+  //alert(BusMessage[1].distance);
+  //按照距离排序
+  var len = maxNumber1;
+  　　var minIndex, temp;
+  　　for (var i = 0; i < len - 1; i++) {
+  　　　　minIndex = i;
+  　　　　for (var j = i + 1; j < len; j++) {
+  　　　　　　if (BusMessage1[j].distance < BusMessage1[minIndex].distance) { //寻找最小的数
+  　　　　　　　　minIndex = j; //将最小数的索引保存
+  　　　　　　}
+  　　　　}
+  　　　　temp = BusMessage1[i];
+  　　　　BusMessage1[i] = BusMessage1[minIndex];
+  　　　　BusMessage1[minIndex] = temp;
+  　　}
+  //传输结束
+
+
+  var res = results[0];
+  bMap.drawBusRoute({
+      id: 1,
+      autoresizing:true,
+      city: res.city,
+      uid: res.uid,
+      nodeShow: false
+  },function(ret1){
+//    alert(JSON.stringify(ret1))
+
+if(ret1.eventType=='click'){
+  api.ajax({
+      url: 'http://47.106.219.51/BusPartner/route/'+searchNumber,
+      method: 'get',
+      data: {
+      }
+  }, function(ret, err) {
+      if (JSON.stringify(ret)!="") {
+//              alert(JSON.stringify(ret1.nodeIndex));
+//          alert(ret['正向'][ret1.nodeIndex].name);
+
+          bMap.addBillboard({
+              id: ret1.nodeIndex,
+              coords: {
+                  lon: ret['正向'][ret1.nodeIndex].longitude,
+                  lat: ret['正向'][ret1.nodeIndex].latitude
+              },
+              bgImg: '',
+              content: {
+                  title:ret['正向'][ret1.nodeIndex].name,
+//                  subTitle: ret['正向'][ret1.nodeIndex].name,
+              },
+              styles: {
+                  titleColor: '#000',
+                  titleSize: 12,
+//                  subTitleSize: 7,
+                  illusAlign: 'right'
+              }
+          }, function(ret10) {
+              if (ret10) {
+                bMap.removeAnnotations({
+               ids: [ret1.nodeIndex]
+          });
+                  alert(ret['正向'][ret1.nodeIndex].name);
+              }
+          });
+
+      } else {
+          alert("获取公交数组失败");
+          api.openFrame({
+             name: 'bottom',
+             url: 'busNumber.html',
+             rect: {
+                 x: 0,
+                 y: 440,
+                 w: 360,
+                 h: 250
+             },
+             pageParam: {
+                 name: ''
+             },
+             reload:true,
+             bounces: false,
+             allowEdit:true,
+             bgColor: 'rgba(0,0,0,0)',
+             vScrollBarEnabled: false,
+             hScrollBarEnabled: false
+          });
+      }
+  });
+}
+//绘制线路成功
+//数据展示
+// alert(JSON.stringify(ret1));
+// var test=JSON.stringify(ret1);
+// api.openFrame({
+//     name: 'page2',
+//     url:  'test.html',
+//     rect: {
+//         x: 0,
+//         y: 0,
+//         w: 340,
+//         h: 450
+//     },
+//     pageParam: {
+//         name: test
+//     },
+//     allowEdit:true,
+//     bounces: true,
+//     bgColor: 'rgba(0,0,0,0)',
+//     vScrollBarEnabled: true,
+//     hScrollBarEnabled: true
+// });
+//数据展示
+
+
+
+      // if(ret.status){
+      //     alert(JSON.stringify(ret));
+      //
+      // }else{
+      //     alert(JSON.stringify(err));
+      // }
+  });
+  var Number=ret0.results[0].name.replace(/[^0-9]+/g, '');
+  var Name=res1;
+  //传递底部参数
+  //打开底部
+  // x: 0,
+  // y: 440,
+  // w: 360,
+  // h: 250
+  api.openFrame({
+  name: 'bottom',
+  url: 'busNumber.html',
+  rect: {
+    x: 0,
+    y: 440,
+    w: 360,
+    h: 250
+  },
+  pageParam: {
+    number:Number,
+    name:Name,
+    busMessage:BusMessage1,
+    maxNumber:maxNumber1
+  },
+  reload:true,
+  bounces: false,
+  bgColor: 'rgba(0,0,0,0)',
+  vScrollBarEnabled: false,
+  hScrollBarEnabled: false
+  });
+
+
+  api.addEventListener({
+      name: 'myapp'
+  }, function(ret, err) {
+      // alert("444");
+      var Ids1=new Array();
+      for(var i1=0;position1[i1];i1++){
+        Ids1[i1]=i1;
+      }
+          bMap.removeAnnotations({
+               ids: Ids1
+          });
+      //传输线路名称加方向（正方向）
+      var BusName=searchNumber+"路"+"("+res1[0]+")";
+
+      api.ajax({
+          url: 'http://47.106.219.51/BusPartner/state/'+BusName,
+          method: 'get',
+          data: {
+          }
+      }, function(retAjax, errAjax) {
+          if (JSON.stringify(retAjax)!="") {
+      //        alert(ret[1].latitude);
+
+      bMap.getLocation({
+          accuracy: '100m',
+          autoStop: true,
+          filter: 1
+      }, function(retLocation, errloaction) {
+          if (retLocation.status) {
+      //获取数据
+      //alert(JSON.stringify(retLocation));
+      //alert(retAjax.length);
+      var BusMessage1=new Array();
+      var maxNumber1=retAjax.length;
+      var position1=new Array();
+      for(var i=0;i<maxNumber1;i++){
+      BusMessage1[i]=new Object();
+      position1[i]=new Object();
+      position1[i].id=i;
+      position1[i].lon=retAjax[i].longitude;
+      position1[i].lat=retAjax[i].latitude;
+      function Rad(d){
+        return d * Math.PI / 180.0;//经纬度转换成三角函数中度分表形式。
+      }
+      function GetDistance(lat1,lng1,lat2,lng2){
+
+              var radLat1 = Rad(lat1);
+              var radLat2 = Rad(lat2);
+              var a = radLat1 - radLat2;
+              var  b = Rad(lng1) - Rad(lng2);
+              var s = 2 * Math.asin(Math.sqrt(Math.pow(Math.sin(a/2),2) +
+              Math.cos(radLat1)*Math.cos(radLat2)*Math.pow(Math.sin(b/2),2)));
+              s = s *6378.137 ;// EARTH_RADIUS;
+              s = Math.round(s * 10000) / 10000; //输出为公里
+              //s=s.toFixed(4);
+              return s;
+          }
+      BusMessage1[i].distance=GetDistance(retAjax[i].latitude,retAjax[i].longitude,retLocation.lat,retLocation.lon).toFixed(1);
+      BusMessage1[i].peopleNum=retAjax[i].passengerNum;
+      BusMessage1[i].carNum=retAjax[i].bus.carNum;
+      BusMessage1[i].maxNum=retAjax[i].bus.seatNum;
+      }
+
+      //画位置
+
+      bMap.addAnnotations({
+          annotations: position1,
+          icon: 'widget://',
+          draggable: true
+      }, function(retAnnot) {
+          if (retAnnot) {
+            bMap.setBubble({
+                id: retAnnot.id,
+                bgImg: 'widget://image//busBackground.png',
+                content: {
+                    title: "载客:"+retAjax[retAnnot.id].passengerNum+"人 "+"核载:"+retAjax[retAnnot.id].bus.seatNum+"人",
+                    subTitle: retAjax[retAnnot.id].bus.carNum+"距我"+BusMessage1[retAnnot.id].distance+"公里",
+                    illus: 'http://ico.ooopic.com/ajax/iconpng/?id=145044.png'
+                },
+                styles: {
+                    titleColor: '#000',
+                    titleSize: 16,
+                    subTitleColor: '#4c4b4b',
+                    subTitleSize: 14,
+                    illusAlign: 'left'
+                }
+            }, function(retBubble) {
+                if (retBubble) {
+      //              alert(JSON.stringify(ret));
+      bMap.closeBubble({
+          id: retAnnot.id
+      });
+                }
+            });
+
+          }
+      });
+
+
+      //画位置结束
+
+      //alert(BusMessage[1].distance)
+      //alert(BusMessage[0].distance);
+      //alert(BusMessage[1].distance);
+      //数据范围提升
+      // 经度 纬度 人数 车牌号 与我距离
+      // $api.setStorage("BusMessage1",BusMessage1);
+      // $api.setStorage("maxNumber1",maxNumber1);
+      //
+      // //传输结束
+      // //收到数据
+      // var BusMessage1=new Array();
+      // BusMessage1=$api.getStorage("BusMessage1");
+      // var maxNumber1=$api.getStorage("maxNumber1");
+
+      //alert(BusMessage[1].distance);
+      //按照距离排序
+      var len = maxNumber1;
+      　　var minIndex, temp;
+      　　for (var i = 0; i < len - 1; i++) {
+      　　　　minIndex = i;
+      　　　　for (var j = i + 1; j < len; j++) {
+      　　　　　　if (BusMessage1[j].distance < BusMessage1[minIndex].distance) { //寻找最小的数
+      　　　　　　　　minIndex = j; //将最小数的索引保存
+      　　　　　　}
+      　　　　}
+      　　　　temp = BusMessage1[i];
+      　　　　BusMessage1[i] = BusMessage1[minIndex];
+      　　　　BusMessage1[minIndex] = temp;
+      　　}
+      //传输结束
+
+
+      var res = results[0];
+      bMap.drawBusRoute({
+          id: 1,
+          autoresizing:true,
+          city: res.city,
+          uid: res.uid,
+          nodeShow: false
+      },function(ret1){
+    //    alert(JSON.stringify(ret1))
+
+    if(ret1.eventType=='click'){
+      api.ajax({
+          url: 'http://47.106.219.51/BusPartner/route/'+searchNumber,
+          method: 'get',
+          data: {
+          }
+      }, function(ret, err) {
+          if (JSON.stringify(ret)!="") {
+    //              alert(JSON.stringify(ret1.nodeIndex));
+    //          alert(ret['正向'][ret1.nodeIndex].name);
+
+              bMap.addBillboard({
+                  id: ret1.nodeIndex,
+                  coords: {
+                      lon: ret['正向'][ret1.nodeIndex].longitude,
+                      lat: ret['正向'][ret1.nodeIndex].latitude
+                  },
+                  bgImg: '',
+                  content: {
+                      title:ret['正向'][ret1.nodeIndex].name,
+    //                  subTitle: ret['正向'][ret1.nodeIndex].name,
+                  },
+                  styles: {
+                      titleColor: '#000',
+                      titleSize: 12,
+    //                  subTitleSize: 7,
+                      illusAlign: 'right'
+                  }
+              }, function(ret10) {
+                  if (ret10) {
+                    bMap.removeAnnotations({
+                   ids: [ret1.nodeIndex]
+              });
+                      alert(ret['正向'][ret1.nodeIndex].name);
+                  }
+              });
+
+          } else {
+              alert("获取公交数组失败");
+              api.openFrame({
+                 name: 'bottom',
+                 url: 'busNumber.html',
+                 rect: {
+                     x: 0,
+                     y: 440,
+                     w: 360,
+                     h: 250
+                 },
+                 pageParam: {
+                     name: ''
+                 },
+                 reload:true,
+                 bounces: false,
+                 allowEdit:true,
+                 bgColor: 'rgba(0,0,0,0)',
+                 vScrollBarEnabled: false,
+                 hScrollBarEnabled: false
+              });
+          }
+      });
+    }
+    //绘制线路成功
+    //数据展示
+    // alert(JSON.stringify(ret1));
+    // var test=JSON.stringify(ret1);
+    // api.openFrame({
+    //     name: 'page2',
+    //     url:  'test.html',
+    //     rect: {
+    //         x: 0,
+    //         y: 0,
+    //         w: 340,
+    //         h: 450
+    //     },
+    //     pageParam: {
+    //         name: test
+    //     },
+    //     allowEdit:true,
+    //     bounces: true,
+    //     bgColor: 'rgba(0,0,0,0)',
+    //     vScrollBarEnabled: true,
+    //     hScrollBarEnabled: true
+    // });
+    //数据展示
+
+
+
+          // if(ret.status){
+          //     alert(JSON.stringify(ret));
+          //
+          // }else{
+          //     alert(JSON.stringify(err));
+          // }
+      });
+      var Number=ret0.results[0].name.replace(/[^0-9]+/g, '');
+      var Name=res1;
+      //传递底部参数
+      //打开底部
+      // x: 0,
+      // y: 440,
+      // w: 360,
+      // h: 250
+      api.openFrame({
+      name: 'bottom',
+      url: 'busNumber.html',
+      rect: {
+        x: 0,
+        y: 440,
+        w: 360,
+        h: 250
+      },
+      pageParam: {
+        number:Number,
+        name:Name,
+        busMessage:BusMessage1,
+        maxNumber:maxNumber1
+      },
+      reload:true,
+      bounces: false,
+      bgColor: 'rgba(0,0,0,0)',
+      vScrollBarEnabled: false,
+      hScrollBarEnabled: false
+      });
+
+
+// alert("4444")
+
+
+      } else {
+          alert("定位错误!");
+      }
+      });
+      //数据提取完成
+          } else {
+              alert("后台获取公交车信息错误!");
+              api.openFrame({
+                 name: 'bottom',
+                 url: 'busNumber.html',
+                 rect: {
+                     x: 0,
+                     y: 440,
+                     w: 360,
+                     h: 250
+                 },
+                 pageParam: {
+                     name: ''
+                 },
+                 reload:true,
+                 bounces: false,
+                 allowEdit:true,
+                 bgColor: 'rgba(0,0,0,0)',
+                 vScrollBarEnabled: false,
+                 hScrollBarEnabled: false
+              });
+          }
+      });
+
+  });
+
+
+  } else {
+      alert("定位错误!");
+  }
+  });
+  //数据提取完成
+      } else {
+          alert("后台获取公交车信息错误!");
+          api.openFrame({
+             name: 'bottom',
+             url: 'busNumber.html',
+             rect: {
+                 x: 0,
+                 y: 440,
+                 w: 360,
+                 h: 250
+             },
+             pageParam: {
+                 name: ''
+             },
+             reload:true,
+             bounces: false,
+             allowEdit:true,
+             bgColor: 'rgba(0,0,0,0)',
+             vScrollBarEnabled: false,
+             hScrollBarEnabled: false
+          });
+      }
+  });
+
+}
+//
+//     for(var i=0, len=results.length; i<len; i++){
+//          var res = results[i];
+//          bMap.drawBusRoute({
+//              id: i+1,
+//              autoresizing:false,
+//              city: res.city,
+//              uid: res.uid,
+//              nodeShow: false
+//          },function(ret1){
+// //绘制线路成功
+// var Number=ret0.results[0].name.replace(/[^0-9]+/g, '');
+//
+//
+// //传递底部参数
+// //打开底部
+// api.openFrame({
+// name: 'bottom',
+// url: 'busNumber.html',
+// rect: {
+//     x: 0,
+//     y: 440,
+//     w: 360,
+//     h: 250
+// },
+// pageParam: {
+//     number:Number,
+//     name:""
+// },
+// reload:true,
+// bounces: false,
+// bgColor: 'rgba(0,0,0,0)',
+// vScrollBarEnabled: false,
+// hScrollBarEnabled: false
+// });
+//              // if(ret.status){
+//              //     alert(JSON.stringify(ret));
+//              //
+//              // }else{
+//              //     alert(JSON.stringify(err));
+//              // }
+//          });
+//     }
+});
+}else{
+     alert("您搜索的公交线路不存在");
+     api.openFrame({
+     name: 'bottom',
+     url: 'busNumber.html',
+     rect: {
+     x: 0,
+     y: 440,
+     w: 360,
+     h: 250
+     },
+     pageParam: {
+       number:"武汉",
+       name:"每天不一样"
+     },
+     reload:true,
+     bounces: false,
+     allowEdit:true,
+     bgColor: 'rgba(0,0,0,0)',
+     vScrollBarEnabled: false,
+     hScrollBarEnabled: false
+     });
+}
+});
+
+//alert(res);
+//在名为winName的window中加载HTML数据
+// var data = 'hello world';
+// api.loadData({
+//     url:"select.html",
+//     data: data
+// });
+
+// api.openFrame({
+//     name: 'page2',
+//     url: 'select.html',
+//     rect: {
+//         x: 0,
+//         y: 0,
+//         w: 320,
+//         h: 480
+//     },
+//     pageParam: {
+//         name0: res0,
+//         name1: res1
+//     },
+//     bounces: false,
+//     bgColor: 'rgba(0,0,0,0)',
+//     vScrollBarEnabled: false,
+//     hScrollBarEnabled: false
+// });
+
+// while(1){
+// //  alert("执行");
+// //  alert(document.getElementById('1').innerHTML);
+//   if(document.getElementById('1').innerHTML!=0){
+//     break;
+//   }
+// }
+}
+}
+
+
+
+
+//
+//
+// //获取用户位置
+// bMap.getLocation({
+//   accuracy: '100m',
+//   autoStop: true,
+//   filter: 1
+// }, function(ret1, err) {
+//   if (ret1.status) {
+// //起始位置 ret1
+//       var startLon=ret1.lon;
+//       var startLat=ret1.lat;
+// //根据地址查找经纬度 ret2
+//       bMap.getCoordsFromName({
+//           city: '武汉',
+//           address: '光谷'
+//       }, function(ret2, err) {
+//           if (ret2.status) {
+//             var endLon=ret2.lon;
+//             var endLat=ret2.lat;
+// //搜索公交路径 ret3
+//       var map = api.require('bMap');
+//       map.searchRoute({
+//         id: 1,
+//         type: 'transit',
+//         policy: 'ebus_no_subway',
+//         start: {
+//             lon: startLon,
+//             lat: startLat
+//         },
+//         end: {
+//             lon: endLon,
+//             lat: endLat
+//         }
+//       }, function(ret3, err) {
+//         if (ret3.status) {
+// //可以有多条，每次换乘只选择第一次传给bus，后台一样。
+// //第一个数字代表路线的条数，第二个数字代表步行公交换乘。
+// alert(JSON.stringify(ret3.plans[1].nodes[1].description));
+//            api.alert({ msg: JSON.stringify(ret3) });
+//         }
+//       });
+//
+//
+//
+//
+//           }
+//       });
+//
+//
+//
+//
+//   } else {
+//       alert(err.code);
+//   }
+// });
+//
+
+
+
+
+
+
+
+
+//
+//
+//   //公交车线路绘制
+//   bMap.searchBusRoute({
+//       city: '武汉',
+//   //公交车线路
+//       line: '709'
+//   },function(ret, err){
+//   //线路方向
+// //    alert(ret.results[0].name);
+//       if(ret.status){
+//          var results = ret.results;
+//          for(var i=0, len=results.length; i<len; i++){
+//               var res = results[i];
+//               bMap.drawBusRoute({
+//                   id: i+1,
+//                   autoresizing:false,
+//                   city: res.city,
+//                   uid: res.uid,
+//                   nodeShow: false
+//               },function(ret){
+//                   if(ret.status){
+//                       alert(JSON.stringify(ret));
+//
+//                   }else{
+//                       alert(JSON.stringify(err));
+//                   }
+//               });
+//          }
+//       }else{
+//           alert(JSON.stringify(err));
+//       }
+//   });
+
+
+    //
+    //   //打开底部
+    // api.openFrame({
+    //    name: 'bottom',
+    //    url: 'busNumber.html',
+    //    rect: {
+    //        x: 0,
+    //        y: 440,
+    //        w: 360,
+    //        h: 250
+    //    },
+    //    pageParam: {
+    //        name: 'test'
+    //    },
+    //    reload:false,
+    //    bounces: false,
+    //    bgColor: 'rgba(0,0,0,0)',
+    //    vScrollBarEnabled: false,
+    //    hScrollBarEnabled: false
+    // });
+
+
+
+  }
+
+
+
+
+
+
+
+
+</script>
+
+</html>

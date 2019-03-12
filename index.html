@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <!-- 加速绘制功能 -->
+  <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
+  <link rel="stylesheet" type="text/css" href="./css/index.css" />
+</head>
+<body>
+</body>
+</html>
+<script type="text/javascript" src="./script/api.js"></script>
+<script>
+
+
+
+  apiready=function(){
+
+
+
+    //打开地图
+    api.openFrame({
+        name: 'main',
+        url: './html/main.html',
+        rect: {
+            x: 0,
+            y: 25,
+            w: 360,
+            h: 640
+        },
+        pageParam: {
+            name: ""
+        },
+        reload:true,
+        bounces: false,
+        allowEdit:true,
+        bgColor: 'rgba(0,0,0,0)',
+        vScrollBarEnabled: false,
+        hScrollBarEnabled: false
+    });
+
+    //打开搜索框
+      api.openFrame({
+          name:'search',
+          url:'./html/search.html',
+          rect: {
+              x: 20,
+              y: 50,
+              w: 320,
+              h: 50
+          },
+          pageParam: {
+              name: 'search'
+          },
+          reload:true,
+          bounces: false,
+          allowEdit:true,
+          bgColor: 'rgba(0,0,0,0)',
+          vScrollBarEnabled: false,
+          hScrollBarEnabled: false
+      });
+}
+</script>
+
+</html>
